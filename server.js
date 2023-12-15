@@ -31,32 +31,32 @@ const sessionObj = {
 app.use(session(sessionObj)); //모든 url에 접근시 적용
 //======Apis========
 
-app.get("/",(req,res)=>{
-    res.sendFile(`${__dirname}/public/index.html`)
-})
+// app.get("/",(req,res)=>{
+//     res.sendFile(`${__dirname}/public/index.html`)
+// })
 
-app.get("/loginPage",(req,res)=>{
-    res.sendFile(`${__dirname}/public/login.html`)
+// app.get("/loginPage",(req,res)=>{
+//     res.sendFile(`${__dirname}/public/login.html`)
 
-})
-app.get("/account",(req,res)=>{
-    res.sendFile(`${__dirname}/public/login.html`)
-    const {idx} = req.body
+// })
+// app.get("/account",(req,res)=>{
+//     res.sendFile(`${__dirname}/public/login.html`)
+//     const {idx} = req.body
 
-    const result={
-        "success":false,
-        "message":"",
-        "data":null
-    }
-    // DB 통신
+//     const result={
+//         "success":false,
+//         "message":"",
+//         "data":null
+//     }
+//     // DB 통신
 
-    // DB 통신 결과 처리
-    result.success=true
-    result.data={}
+//     // DB 통신 결과 처리
+//     result.success=true
+//     result.data={}
 
-    //값 반환
-    res.send(result)
-})
+//     //값 반환
+//     res.send(result)
+// })
 
 // 로그인 처리 API
 app.post('/loginAction', (req, res) => {
