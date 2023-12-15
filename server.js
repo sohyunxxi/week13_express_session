@@ -1,7 +1,7 @@
 //==========package============
 const express=require("express")
-const session = require("express-session")
-var MySQLStore = require("express-mysql-session")(session);
+const session = require("express-session")//
+var MySQLStore = require("express-mysql-session")(session); //세션 저장위치 바꿈 -> 지금 당장은 필요없음.
 
 var options = {
     host: "localhost",
@@ -11,8 +11,9 @@ var options = {
     database: "week06",
   };
   
-  var sessionStore = new MySQLStore(options);
+var sessionStore = new MySQLStore(options);
 
+//예외처리를 모듈화해서 밖으로 빼기 (유효성 모듈)
 
 //======Init========
 const app = express()
@@ -58,8 +59,9 @@ app.use(session(sessionObj)); //모든 url에 접근시 적용
 //     res.send(result)
 // })
 
+
 // 로그인 처리 API
-app.post('/loginAction', (req, res) => {
+app.post('/login', (req, res) => {
     try{
         const { id, pw } = req.body;
 
@@ -138,7 +140,7 @@ app.post('/logout', (req, res) => { //또는 delete?
             return res.status(400).send(result);
         }
 
-        // 이미 로그아웃한 사용자인지 확인하고, 로그인된 경우에만 세션 제거
+        // 이미 로그아웃한 사용자인지 확인하고, 로그인된 경우에만 세션 제거 (세션 파기)
         req.session.destroy((err) => {
             if (err) {
                 result.message = '로그아웃 실패';
@@ -157,7 +159,7 @@ app.post('/logout', (req, res) => { //또는 delete?
 });
 
 //id 찾기 api
-app.get("/findId", (req,res) => {
+app.get("/account/:findid", (req,res) => {//다른 방식으로 적기 (/ 사용할것)
     const { name, email } = req.body
 
     const result = {
@@ -201,7 +203,7 @@ app.get("/findId", (req,res) => {
 })
 
 //pw 찾기
-app.get("/findPw", (req,res) => {
+app.get("/account/:findpw", (req,res) => { //다른 방식으로 적기 (/ 사용할것)
     const { name, email } = req.body
 
     const result = {
@@ -249,8 +251,12 @@ app.get("/findPw", (req,res) => {
     }
 })
 
+
+//------회원 관련 API-------
+
+
 // 회원가입 API
-app.post('/makeAccount', (req, res) => {
+app.post('/account', (req, res) => {
     const { id, pw, confirmPw, name, email, tel, birth, gender } = req.body;
 
     const result = {
@@ -323,9 +329,72 @@ app.post('/makeAccount', (req, res) => {
 
 });
 
+// 회원정보 보기 API
+
+app.get("/account/:userIdx", (req, res) => { //account:/my 이게 더 나음. 세션으로 검증하면 됨.
+    const { id, pw, confirmPw, name, email, tel, birth, gender } = req.body;
+
+    const result = {
+        success: false,
+        message: '',
+        data: null,
+    };
+
+    const pwReg = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/;
+    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    const telReg = /^[0-9]{11}$/
+
+    try{
+
+        if(!req.session.userIdx){
+            result.message = "로그인 되어 있지 않음"
+            //return res.status(401).send(result)
+            res.redirect('/login.jsp');
+
+        }
+
+        if(!pwReg.test(pw)){
+            result.message = "비밀번호 양식이 틀림"
+            return res.status(400).send(result)
+            
+        }
+        if(!telReg.test(tel)){
+            result.message = "전화번호는 11자리 숫자만"
+            return res.status(400).send(result)
+            
+        }
+        if(!emailReg.test(email)){
+            result.message = "이메일 양식에 맞지않음, ex) kaka1234@gmail.com"
+            return res.status(400).send(result)
+            
+        }
+        if(gender==null){
+            result.message = "성별이 비어있음"
+            return res.status(400).send(result)
+        }
+
+
+
+        result.success = true;
+        result.message = '정보 불러오기 성공';
+        result.data = { id, name, 
+            "pw" : pw, 
+            "email" : email,
+            "birth" : birth,
+            "tel" : tel,
+            "gender" : gender }; // 가입된 사용자 정보
+        res.redirect('/showInfo.jsp');
+    }
+    catch(error){
+        result.message = "회원정보 불러오기 오류 발생"
+        res.status(500).send(result)
+    }
+
+});
+
 // 회원정보 수정 API
 
-app.put('/updateAccount', (req, res) => {
+app.put("/account", (req, res) => {
     const { id, pw, confirmPw, name, email, tel, birth, gender } = req.body;
 
     const result = {
@@ -400,7 +469,7 @@ app.put('/updateAccount', (req, res) => {
 });
 
 //회원 탈퇴하기
-app.delete("/deleteAccount", (req, res) => {
+app.delete("/account", (req, res) => {
     const result = {
         "success": false, 
         "message": ""
@@ -440,7 +509,7 @@ app.delete("/deleteAccount", (req, res) => {
 //------게시물 관련 API-------
 
 //게시물 목록 불러오기
-app.get("/mainPage", (req,res) => {
+app.get("/post", (req,res) => {
     const result = {
         "success" : false, 
         "message" : "", 
@@ -464,7 +533,7 @@ app.get("/mainPage", (req,res) => {
 })
 
 //각 게시물 읽기 => 댓글도 받아오기.
-app.get("/post/:postIdx", (req,res) => {
+app.get("/post/:idx", (req,res) => {
    
     const postIdx = req.params.postIdx;
     const userIdx = req.session.userIdx;
@@ -514,7 +583,7 @@ app.get("/post/:postIdx", (req,res) => {
 })
 
 //게시물 쓰기
-app.post("/createPost", (req,res) => {
+app.post("/post", (req,res) => {
     
     const { content, title } = req.body
 
@@ -557,7 +626,7 @@ app.post("/createPost", (req,res) => {
 })
 
 //게시물 수정하기
-app.put("/post/:postIdx", (req,res) => {
+app.put("/post/:idx", (req,res) => {
     const { content, title } = req.body
     
     const result = {
@@ -604,7 +673,7 @@ app.put("/post/:postIdx", (req,res) => {
 })
 
 //게시물 삭제하기
-app.delete("/post/:postIdx", (req,res) => {
+app.delete("/post/:idx", (req,res) => {
 
     const postIdx = req.body.postIdx
     const userIdx = req.session.userIdx
@@ -638,10 +707,9 @@ app.delete("/post/:postIdx", (req,res) => {
 //------댓글 관련 API-------
 
 //댓글 등록 API
-app.post("/comments", (req,res) => {
-    
-    const { postingIdx, content } = req.body
+app.post("/comment", (req,res) => {
 
+    const { postingIdx, content } = req.body
     const result = {
         "success" : false, 
         "message" : "",
@@ -681,7 +749,7 @@ app.post("/comments", (req,res) => {
 
 
 //댓글 수정 API
-app.put("/comments:/commentIdx", (req,res) => {
+app.put("/comment:/idx", (req,res) => {
     
     const {content} = req.body
     const commentIdx = req.body.commentIdx
@@ -730,16 +798,16 @@ app.put("/comments:/commentIdx", (req,res) => {
 })
 
 //댓글 삭제 
-app.delete("/comments:/commentIdx", (req,res) => {
+app.delete("/comment:/idx", (req,res) => {
+  
+    const commentWriterIdx = req.body.commentWriterIdx
+
+    const result = {
+        "success" : false, 
+        "message" : "", 
+        "data" : null 
+    }
     try{
-        const commentWriterIdx = req.body.commentWriterIdx
-    
-        const result = {
-            "success" : false, 
-            "message" : "", 
-            "data" : null 
-        }
-    
         if(!req.session.userIdx){
             result.message = "로그인 상태가 아님"
             //return res.status(401).send(result)            
