@@ -1,25 +1,35 @@
 //==========package============
 const express=require("express")
 const session = require("express-session")//
-var MySQLStore = require("express-mysql-session")(session); //세션 저장위치 바꿈 -> 지금 당장은 필요없음.
+// var MySQLStore = require("express-mysql-session")(session); //세션 저장위치 바꿈 -> 지금 당장은 필요없음.
 
-var options = {
-    host: "localhost",
-    port: 8000,
-    user: "Sohyunxxi",
-    password: "1234",
-    database: "week06",
-  };
+// var options = {
+//     host: "localhost",
+//     port: 8000,
+//     user: "Sohyunxxi",
+//     password: "1234",
+//     database: "week06",
+//   };
   
-var sessionStore = new MySQLStore(options);
+// var sessionStore = new MySQLStore(options);
 
 //예외처리를 모듈화해서 밖으로 빼기 (유효성 모듈)
+const maria = require("mysql");
 
 //======Init========
 const app = express()
 const port = 8000
 const maxAge = 1000 * 60 * 10; //10분동안 세션유지
+maria.connect();
 
+var connection = mysql.createConnection({
+    host: '3.35.27.154', 
+    port: 8000,
+    user: 'Sohyunxxi', 
+    password: '1234',
+    connectionLimit: 5,
+    database:"week6"
+});
 
 const sessionObj = {
   secret: 'session',
