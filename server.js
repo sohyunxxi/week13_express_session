@@ -70,6 +70,19 @@ app.use(session(sessionObj)); //모든 url에 접근시 적용
 // })
 
 
+//이런식으로 작성하기
+// app.post("/send_mysql", async function(req,res){
+//     var email = req.body.email;
+//     connection.query('SELECT * FROM mail' , function(err, rows){
+//          if(err) throw err;
+//          if(rows[0]){
+//               console.log(rows[0]);
+//          }
+//     });
+//     res.send(email);
+// })
+
+
 // 로그인 처리 API
 app.post('/login', (req, res) => {
     try{
