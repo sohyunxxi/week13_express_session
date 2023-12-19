@@ -2,10 +2,12 @@
 // 댓글 등록하기
 // 댓글 수정하기
 // 댓글 삭제하기
+const router = require("express").Router()
+
 //------댓글 관련 API-------
 
 //댓글 등록 API
-app.post("/comment", (req,res) => {
+router.post("/comment", (req,res) => {
 
     const { postingIdx, content } = req.body
     const result = {
@@ -47,7 +49,7 @@ app.post("/comment", (req,res) => {
 
 
 //댓글 수정 API
-app.put("/comment:/idx", (req,res) => {
+router.put("/comment:/idx", (req,res) => {
     
     const {content} = req.body
     const commentIdx = req.body.commentIdx
@@ -96,7 +98,7 @@ app.put("/comment:/idx", (req,res) => {
 })
 
 //댓글 삭제 
-app.delete("/comment:/idx", (req,res) => {
+router.delete("/comment:/idx", (req,res) => {
   
     const commentWriterIdx = req.body.commentWriterIdx
 
@@ -128,3 +130,4 @@ app.delete("/comment:/idx", (req,res) => {
     }
 })
 
+module.exports = router

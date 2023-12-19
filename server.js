@@ -1,21 +1,21 @@
 //==========package============//예외처리를 모듈화해서 밖으로 빼기 (유효성 모듈)
 const express=require("express")
 const session = require("express-session")//
-const maria = require("mysql");
+const mysql = require("mysql");
 
 //======Init========
 const app = express()
 const port = 8000
-maria.connect();
 
-var connection = mysql.createConnection({
-    host: '3.35.27.154', 
-    port: 8000,
+const connection = mysql.createConnection({
+    host: 'localhost', 
+    port: 3306,
     user: 'Sohyunxxi', 
     password: '1234',
-    connectionLimit: 5,
     database:"week6"
 });
+
+const sessionStore = new session.MemoryStore();
 
 const sessionObj = {
   secret: 'session',
@@ -34,13 +34,20 @@ const accountApi = require("./src/routers/account")
 app.use("/account", accountApi)
 
 const postApi = require("./src/routers/post")
-app.use("/",postApi)
+app.use("/post",postApi)
 
 const commentApi = require("./src/routers/comment")
-app.use("/",commentApi)
+app.use("/comment",commentApi)
 
 //======Web Server======
 app.listen(port, ()=>{
     console.log(`${port}번에서 HTTP 웹서버 실행`)
 })
 
+connection.connect((err) => {
+    if (err) {
+      console.error('MySQL 연결 실패: ' + err.stack);
+      return;
+    }
+    console.log('MySQL에 연결되었습니다. 연결 ID: ' + connection.threadId);
+  });

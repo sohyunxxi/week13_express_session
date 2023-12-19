@@ -2,35 +2,38 @@
 // 게시물 등록하기
 // 게시물 수정하기
 // 게시물 삭제하기
+const router = require("express").Router()
 
 //------게시물 관련 API-------
 
 //게시물 목록 불러오기
-app.get("/post", (req,res) => {
+router.get("/", (req, res) => {
     const result = {
-        "success" : false, 
-        "message" : "", 
-        "data" : null 
-    }
-    try{
+        "success": false,
+        "message": "",
+        "data": {
+            "posts": [],  // posts 배열 초기화
+            "comments": []  // comments 배열 초기화
+        }
+    };
+
+    try {
         if (!req.session.userIdx) {
-            result.message = "로그인 상태가 아닙니다."
-            //return res.status(401).send(result)
+            result.message = "로그인 상태가 아닙니다.";
             res.redirect('/login.jsp');
         }
-        result.success = true
-        result.message = "전체 게시물 불러오기"
-        res.status(200).send(result)
-
-    }catch (error){
-        result.success = false
-        result.message = "전체 게시물 불러오기 오류 발생"
-        res.status(500).send(result)
+        result.success = true;
+        result.message = "전체 게시물 불러오기";
+        res.status(200).send(result);
+    } catch (error) {
+        result.success = false;
+        result.message = "전체 게시물 불러오기 오류 발생";
+        res.status(500).send(result);
     }
-})
+});
 
 //각 게시물 읽기 => 댓글도 받아오기.
-app.get("/post/:idx", (req,res) => {
+router.get("/idx", (req,res) => {
    
     const postIdx = req.params.postIdx;
     const userIdx = req.session.userIdx;
@@ -80,7 +83,7 @@ app.get("/post/:idx", (req,res) => {
 })
 
 //게시물 쓰기
-app.post("/post", (req,res) => {
+router.post("/new", (req,res) => {
     
     const { content, title } = req.body
 
@@ -123,7 +126,7 @@ app.post("/post", (req,res) => {
 })
 
 //게시물 수정하기
-app.put("/post/:idx", (req,res) => {
+router.put("/idx", (req,res) => {
     const { content, title } = req.body
     
     const result = {
@@ -170,7 +173,7 @@ app.put("/post/:idx", (req,res) => {
 })
 
 //게시물 삭제하기
-app.delete("/post/:idx", (req,res) => {
+router.delete("/idx", (req,res) => {
 
     const postIdx = req.body.postIdx
     const userIdx = req.session.userIdx
@@ -200,3 +203,4 @@ app.delete("/post/:idx", (req,res) => {
         res.status(500).send(result)
     }
 })
+module.exports = router

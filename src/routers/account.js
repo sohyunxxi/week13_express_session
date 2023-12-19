@@ -1,5 +1,15 @@
 const validator = require('validator');
 const router = require("express").Router()
+const mysql = require('mysql');
+const path = require("path")
+
+const connection = mysql.createConnection({
+    host: 'localhost', 
+    port: 3306,
+    user: 'Sohyunxxi', 
+    password: '1234',
+    database:"week6"
+  });
 
 // 아이디 유효성 검증 함수
 const validateId = (id) => {
@@ -38,7 +48,7 @@ module.exports = {
 // 비밀번호 찾기
 
 router.post('/login', (req, res) => {
-    try{
+    try {
         const { id, pw } = req.body;
 
         const idReq = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,12}$/;
@@ -50,58 +60,63 @@ router.post('/login', (req, res) => {
             "data": null
         };
 
-        // DB 통신
-
-        // DB 통신 결과 처리 
-
         // id 정규표현식
-        if(!idReq.test(id)){
+        if (!idReq.test(id)) {
             result.message = "아이디는 6자리 이상 12자리 이하의 영어와 숫자 조합으로 작성해주세요.";
             return res.status(400).send(result);
         }
-        //pw 정규표현식
-        if(!pwReg.test(pw)){
+        // pw 정규표현식
+        if (!pwReg.test(pw)) {
             result.message = "비밀번호는 6자리 이상 16자리 이하의 영어,숫자,특수문자 조합으로 작성해주세요.";
             return res.status(400).send(result);
         }
 
-        //잘못된 비밀번호 입력 -> db에서 가져온 pw 일치 xx
-        if(pw!=userPw){
-            result.message = "비밀번호가 일치하지 않습니다.";
-            return res.status(400).send(result);
-        }
-        //아이디가 없음 -> ??
-        if (!userId) {
-            result.message = "해당하는 아이디가 없습니다.";
-            return res.status(400).send(result);
-        }
+        // DB 통신
+        const selectSql = "SELECT * FROM user WHERE id = ? AND pw = ?";
+        connection.query(selectSql, [id, pw], (err, rows) => {
+            if (err) {
+                console.error('로그인 오류: ', err);
+                result.message = '로그인 실패';
+                return res.status(500).send(result);
+            }
 
-        // 로그인 성공
-        result.success = true;
-        result.message = "로그인 성공";
+            // 아이디가 없음
+            if (rows.length === 0) {
+                result.message = "해당하는 아이디가 없습니다.";
+                return res.status(400).send(result);
+            }
 
-        // 데이터베이스에서 조회된 정보로 result.data 설정
-        result.data = {
-            userId: userId,
-            userName: userName,
-            userIdx: userIdx
-        };
+            // 로그인 성공
+            result.success = true;
+            result.message = '로그인 성공';
+            result.data = { id, pw };
 
-        // URL 조립
-        const redirectUrl = '/mainPage.jsp';
-        const redirectUrlWithQuery = `${redirectUrl}?userId=${id}`;
+            // 데이터베이스에서 조회된 정보로 result.data 설정
+            const userDataFromDB = rows[0];
+            result.data = {
+                userId: userDataFromDB.id,
+                userName: userDataFromDB.name,
 
-        // 세션에 사용자 정보 저장
-        req.session.user = { userId, userPw, userName, userEmail, userTel, userIdx, userBirth, userGender };
+            };
 
-        // 리다이렉트
-        res.redirect(redirectUrlWithQuery);
-    } catch(error) {
+            // URL 조립
+            const redirectUrl = '/mainPage.jsp';
+            const redirectUrlWithQuery = `${redirectUrl}?userId=${id}`;
+
+            // 세션에 사용자 정보 저장
+            req.session.user = userDataFromDB;
+
+            // 리다이렉트
+            res.redirect(redirectUrlWithQuery);
+        });
+    } catch (error) {
         // 로그인 실패
+        console.error('로그인 실패: ', error);
         result.message = "로그인 실패";
         res.status(500).send(result);
     }
 });
+
 
 // 로그아웃 API
 router.post('/logout', (req, res) => { //또는 delete?
@@ -233,7 +248,7 @@ router.get("/findpw", (req,res) => { //다른 방식으로 적기 (/ 사용할�
 
 // 회원가입 API
 router.post("/", (req, res) => {
-    const { id, pw, confirmPw, name, email, tel, birth, gender } = req.body;
+    const { id, pw, confirmPw, name, email, tel, birth, address, gender } = req.body;
 
     const result = {
         success: false,
@@ -243,67 +258,59 @@ router.post("/", (req, res) => {
 
     const idReq = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,12}$/;
     const pwReg = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/;
-    const nameReg = /^[a-zA-Z가-힣]{2,50}$/
-    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    const telReg = /^[0-9]{11}$/
-    let genderNum=0//성별
-    //유효성 관련 변수
-    const idDuplication = false
+    const nameReg = /^[a-zA-Z가-힣]{2,50}$/;
+    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const telReg = /^[0-9]{11}$/;  
+    const birthReg = /^\d{8}$/;
+    const genderReg = /^(남성|여성)$/;
+  
 
-    try{
-        if(!idReq.test(id)){
-            result.message = "아이디는 6-12자리 영어 숫자 조합"
-            return res.status(400).send(result)
-            
-        }
-        if(!pwReg.test(pw)){
-            result.message = "비밀번호는 6-16자리 영어 숫자 특수기호 조합"
-            return res.status(400).send(result)
-            
-        }
-        if(!pwReg.test(confirmPw)){
-            result.message = "비밀번호는 6-16자리 영어 숫자 특수기호 조합"
-            return res.status(400).send(result)
-            
-        }
-        if(!telReg.test(tel)){
-            result.message = "전화번호는 11자리 숫자만"
-            return res.status(400).send(result)
-            
-        }
-        if(!emailReg.test(email)){
-            result.message = "이메일 양식에 맞춰서 작성, ex) kaka1234@gmail.com"
-            return res.status(400).send(result)
-            
-        }
-
-        if(!nameReg.test(name)){
-            result.message = "이름은 영어나 한글로 2~50자리"
-            return res.status(400).send(result)
-            
-        }
-        if(confirmPw!== pw){
-            result.message = "비밀번호가 일치하지 않습니다."
-            return res.status(400).send(result)
-            
-        }
-        if(idDuplication){
-            result.message = "아이디가 중복입니다."
-            return res.status(400).send(result)
-            
-        }
-
-        result.success = true;
-        result.message = '회원가입 성공';
-        result.data = { id, name, pw, email, birth, tel, gender }; // 가입된 사용자 정보
-        res.redirect('/login.jsp'); 
-    }
-    catch(error){
-        result.message = "회원가입 오류 발생"
-        res.status(500).send(result)
+    if (!idReq.test(id) || !pwReg.test(pw) || !pwReg.test(confirmPw) ||
+        !telReg.test(tel) || !emailReg.test(email) || !nameReg.test(name) ||!birthReg.test(birth) || !genderReg.test(gender) ||
+        confirmPw !== pw) {
+        result.message = "입력값이 유효하지 않습니다.";
+        return res.status(400).send(result);
     }
 
+    // 중복 확인
+
+    const checkDuplicate = "SELECT * FROM user WHERE id = ?";
+    connection.query(checkDuplicate, [id], (err, rows) => {
+        if (err) {
+            console.error('회원가입 오류 - 아이디 중복: ', err);
+            return res.status(500).send({
+                success: false,
+                message: '회원가입 실패 - 아이디 중복',
+                data: null
+            });
+        }
+
+        if (rows.length > 0) {
+            return res.status(400).send({
+                success: false,
+                message: "아이디가 이미 사용 중입니다.",
+                data: null
+            });
+        }
+
+        // 회원가입 쿼리
+        const insertSql = "INSERT INTO user (name, id, pw, email, birth, tel, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        connection.query(insertSql, [name, id, pw, email, birth, tel, address, gender], (err) => {
+            if (err) {
+                console.error('회원가입 오류: ', err);
+                result.message = '회원가입 실패';
+                return res.status(500).send(result);
+            }
+
+            result.success = true;
+            result.message = '회원가입 성공';
+            result.data = { id, name, pw, email, birth, tel, gender, address };
+            res.sendFile(path.join(__dirname, "../../public/index.html"))
+        });
+    });
 });
+
+
 
 // 회원정보 보기 API
 
