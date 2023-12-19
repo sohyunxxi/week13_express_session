@@ -95,19 +95,14 @@ router.post('/login', (req, res) => {
             const userDataFromDB = rows[0];
             result.data = {
                 userId: userDataFromDB.id,
-                userName: userDataFromDB.name,
-
+                userPw: userDataFromDB.pw,
+                
             };
-
-            // URL 조립
-            const redirectUrl = '/mainPage.jsp';
-            const redirectUrlWithQuery = `${redirectUrl}?userId=${id}`;
 
             // 세션에 사용자 정보 저장
             req.session.user = userDataFromDB;
+            res.sendFile(path.join(__dirname, "../../public/mainPage.html"))
 
-            // 리다이렉트
-            res.redirect(redirectUrlWithQuery);
         });
     } catch (error) {
         // 로그인 실패
@@ -117,21 +112,21 @@ router.post('/login', (req, res) => {
     }
 });
 
-
 // 로그아웃 API
-router.post('/logout', (req, res) => { //또는 delete?
+router.post('/logout', (req, res) => {
     const result = {
-        "success" : false, 
-        "message" : "" 
+        success: false,
+        message: ''
     };
 
     try {
-        if (!req.session.userIdx) {
+        // 세션이 존재하면 로그인 상태로 간주
+        if (!req.session) {
             result.message = '로그인 상태가 아닙니다.';
             return res.status(400).send(result);
         }
 
-        // 이미 로그아웃한 사용자인지 확인하고, 로그인된 경우에만 세션 제거 (세션 파기)
+        // 세션 파기 (로그아웃)
         req.session.destroy((err) => {
             if (err) {
                 result.message = '로그아웃 실패';
@@ -139,63 +134,69 @@ router.post('/logout', (req, res) => { //또는 delete?
             } else {
                 result.success = true;
                 result.message = '로그아웃 성공';
-                res.redirect('/login.jsp'); 
-                //res.status(200).send(result);
+                res.sendFile(path.join(__dirname, "../../public/index.html"));
             }
         });
     } catch (error) {
-        result.message = "로그아웃 오류 발생";
+        result.message = '로그아웃 오류 발생';
         res.status(500).send(result);
     }
 });
 
-//id 찾기 api
-router.get("/findid", (req,res) => {//다른 방식으로 적기 (/ 사용할것)
-    const { name, email } = req.body
+
+
+// id 찾기 API
+router.get("/findid", (req, res) => {
+    const { name, email } = req.body;
 
     const result = {
-        "success" : false, 
-        "message" : "",
-        "data" : null 
+        success: false,
+        message: "",
+        data: null
+    };
+    const nameReg = /^[a-zA-Z가-힣]{2,50}$/;
+    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    try {
+        if (!nameReg.test(name) || !emailReg.test(email)) {
+            result.success = false;
+            result.message = "입력값이 유효하지 않습니다.";
+            return res.status(400).send(result);
+        }
+
+        // 아이디 찾기 쿼리
+        const selectSql = "SELECT id FROM user WHERE name = ? AND email = ?";
+        connection.query(selectSql, [name, email], (err, rows) => {
+            if (err) {
+                console.error('아이디 찾기 오류: ', err);
+                result.message = '아이디찾기 실패';
+                return res.status(500).send(result);
+            }
+
+            if (rows.length === 0) {
+                result.success = false;
+                result.message = '일치하는 정보가 없습니다.';
+                return res.status(404).send(result);
+            }
+
+            const foundId = rows[0].id;
+            result.success = true;
+            result.message = `아이디찾기 성공, 아이디는 ${foundId} 입니다.`;
+            result.data = { id: foundId, name, email };
+            res.status(200).send(result);
+        });
+
+    } catch (error) {
+        result.success = false;
+        result.message = "아이디 찾기 오류 발생";
+        res.status(500).send(result);
     }
-    const nameReg = /^[a-zA-Z가-힣]{2,50}$/
-    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+});
 
-    try{
-
-        if(!nameReg.test(name)){
-            result.success = false
-            result.message = "이름은 영어나 한글로 2~50자리"
-            return res.status(400).send(result)
-        }
-        
-        if(!emailReg.test(email)){
-            result.success = false
-            result.message = "이메일 양식에 맞춰서 작성, ex) kaka1234@gmail.com"
-            return res.status(400).send(result)
-        }
-
-        if(foundUser){ //db에서 조회하고 일치하는 경우에 foundUser는 True
-            result.success = true
-            result.data.id=userId
-            result.message = `사용자의 아이디는 ${userId}입니다.`;
-            res.redirect('/login.jsp'); 
-        }
-        else{
-            result.message = "해당 사용자를 찾을 수 없습니다."
-            res.status(404).send(result);        
-        }
-       
-    } catch (error){
-        result.success = false
-        result.message = "아이디 찾기 오류 발생"
-        res.status(500).send(result)
-    }
-})
 
 //pw 찾기
 router.get("/findpw", (req,res) => { //다른 방식으로 적기 (/ 사용할것)
-    const { name, email } = req.body
+    const { name, email, id } = req.body
 
     const result = {
         "success" : false, 
@@ -223,17 +224,28 @@ router.get("/findpw", (req,res) => { //다른 방식으로 적기 (/ 사용할�
             return res.status(400).send(result)
         }
 
+        // 아이디 찾기 쿼리
+        const selectSql = "SELECT pw FROM user WHERE name = ? AND email = ? AND id = ?";
+        connection.query(selectSql, [name, email, id], (err, rows) => {
+            if (err) {
+                console.error('비밀번호 찾기 오류: ', err);
+                result.message = '비밀번호 찾기 실패';
+                return res.status(500).send(result);
+            }
 
-        if(foundUser){//db에서 조회하고 일치하는 경우에 foundUser는 True
-            result.success = true
-            result.pw=userPw
-            result.message = "사용자의 비밀번호는 ${userPw}입니다."
-            res.redirect('/login.jsp'); 
-        }
-        else{
-            result.message = "해당 사용자를 찾을 수 없습니다."
-            res.status(404).send(result);
-        }
+            if (rows.length === 0) {
+                result.success = false;
+                result.message = '일치하는 정보가 없습니다.';
+                return res.status(404).send(result);
+            }
+
+            const foundPw = rows[0].pw;
+            result.success = true;
+            result.message = `비밀번호 찾기 성공, 비밀번호는 ${foundPw} 입니다.`;
+            result.data = { id: foundPw, name, email };
+            res.status(200).send(result);
+   });
+
        
     } catch (error){
         result.success = false
@@ -306,6 +318,7 @@ router.post("/", (req, res) => {
             result.message = '회원가입 성공';
             result.data = { id, name, pw, email, birth, tel, gender, address };
             res.sendFile(path.join(__dirname, "../../public/index.html"))
+
         });
     });
 });
@@ -313,9 +326,8 @@ router.post("/", (req, res) => {
 
 
 // 회원정보 보기 API
-
-router.get("/my", (req, res) => { //account/:my 이게 더 나음. 세션으로 검증하면 됨.
-    const { id, pw, confirmPw, name, email, tel, birth, gender } = req.body;
+router.get("/my", (req, res) => {
+    //const { id, pw, name, email, tel } = req.body;
 
     const result = {
         success: false,
@@ -324,61 +336,57 @@ router.get("/my", (req, res) => { //account/:my 이게 더 나음. 세션으로 
     };
 
     const pwReg = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/;
-    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    const telReg = /^[0-9]{11}$/
+    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const telReg = /^[0-9]{11}$/;
 
-    try{
-
-        if(!req.session.userIdx){
-            result.message = "로그인 되어 있지 않음"
-            //return res.status(401).send(result)
-            res.redirect('/login.jsp');
-
+    try {
+        if (!req.session.user) {
+            result.message = "로그인 되어 있지 않음";            
+            return res.status(401).send(result);
         }
+        const selectSql = "SELECT * FROM user WHERE idx =?";
+        connection.query(selectSql, [req.session.user.idx], (err, rows) => {
+            if (err) {
+                console.error('정보 불러오기 오류: ', err);
+                result.message = '정보 불러오기 실패';
+                return res.status(500).send(result);
+            }
+            const id = rows[0].id;
+            const pw = rows[0].pw;
+            const email = rows[0].email;
+            const name = rows[0].name;
+            const address = rows[0].address;
+            const birth = rows[0].birth;
+            const gender = rows[0].gender;
 
-        if(!pwReg.test(pw)){
-            result.message = "비밀번호 양식이 틀림"
-            return res.status(400).send(result)
-            
-        }
-        if(!telReg.test(tel)){
-            result.message = "전화번호는 11자리 숫자만"
-            return res.status(400).send(result)
-            
-        }
-        if(!emailReg.test(email)){
-            result.message = "이메일 양식에 맞지않음, ex) kaka1234@gmail.com"
-            return res.status(400).send(result)
-            
-        }
-        if(gender==null){
-            result.message = "성별이 비어있음"
-            return res.status(400).send(result)
-        }
+            result.success = true;
+            result.message = "회원정보 불러오기 성공";
+            result.data = {
+                id: id,
+                pw : pw,
+                name : name, 
+                email : email,
+                address : address,
+                gender : gender,
+                birth : birth
+            };
 
+                return res.status(200).send(result);
+           
 
+        });
 
-        result.success = true;
-        result.message = '정보 불러오기 성공';
-        result.data = { id, name, 
-            "pw" : pw, 
-            "email" : email,
-            "birth" : birth,
-            "tel" : tel,
-            "gender" : gender }; // 가입된 사용자 정보
-        res.redirect('/showInfo.jsp');
+    } catch (error) {
+        result.message = "회원정보 불러오기 오류 발생";
+        res.status(500).send(result);
     }
-    catch(error){
-        result.message = "회원정보 불러오기 오류 발생"
-        res.status(500).send(result)
-    }
-
 });
+
 
 // 회원정보 수정 API
 
 router.put("/my", (req, res) => {
-    const { id, pw, confirmPw, name, email, tel, birth, gender } = req.body;
+    const { pw, confirmPw, email, tel, birth, gender, address } = req.body;
 
     const result = {
         success: false,
@@ -389,13 +397,11 @@ router.put("/my", (req, res) => {
     const pwReg = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/;
     const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
     const telReg = /^[0-9]{11}$/
-    let genderNum=0//성별
     //유효성 관련 변수
-    const idDuplication = false
 
     try{
 
-        if(!req.session.userIdx){
+        if(!req.session.user){
             result.message = "로그인 되어 있지 않음"
             //return res.status(401).send(result)
             res.redirect('/login.jsp');
@@ -412,6 +418,10 @@ router.put("/my", (req, res) => {
             return res.status(400).send(result)
             
         }
+        if(!pwReg.test(confirmPw)){
+            result.message = "비밀번호 불일치"
+            return res.status(400).send(result)
+        }
         if(!telReg.test(tel)){
             result.message = "전화번호는 11자리 숫자만"
             return res.status(400).send(result)
@@ -427,22 +437,30 @@ router.put("/my", (req, res) => {
             return res.status(400).send(result)
             
         }
-        if(idDuplication){
-            result.message = "아이디가 중복입니다."
-            return res.status(400).send(result)
-            
-        }
-        //성별 추가하기
 
-        result.success = true;
-        result.message = '정보수정 성공';
-        result.data = { id, name, 
-            "pw" : pw, 
-            "email" : email,
-            "birth" : birth,
-            "tel" : tel,
-            "gender" : gender }; // 가입된 사용자 정보
-        res.redirect('/showInfo.jsp');
+        const updateSql = "UPDATE user SET pw = ?, email = ?, tel = ?, gender = ?, address = ?, birth = ? WHERE idx = ?";
+        connection.query(updateSql, [pw, email, tel, gender, address, birth , req.session.user.idx], (err, rows) => {
+            if (err) {
+                console.error('정보 수정 오류: ', err);
+                result.message = '정보 수정 실패';
+                return res.status(500).send(result);
+            }
+            result.success = true;
+            result.message = "회원정보 수정 성공";
+            result.data = {
+                id: req.session.user.id,
+                pw : pw,
+                name : req.session.user.name, 
+                email : email,
+                address : address,
+                gender : gender,
+                birth : birth
+            };
+
+                return res.status(200).send(result);
+        
+        });
+
     }
     catch(error){
         result.message = "회원정보 수정 오류 발생"
@@ -452,39 +470,43 @@ router.put("/my", (req, res) => {
 });
 
 //회원 탈퇴하기
-router.delete("/my", (req, res) => {
+router.delete("/my", async (req, res) => {
+
     const result = {
-        "success": false, 
-        "message": ""
-    }
+        success: false,
+        message: '',
+        data: null,
+    };
 
     try {
-
-        if (!req.session.userIdx) {
-            result.message = "로그인 상태가 아닙니다."
-            //return res.status(401).send(result)
-            res.redirect('/login.jsp');
+        if (!req.session.user) {
+            result.message = "로그인 되어 있지 않음";
+            return res.status(401).send(result);
         }
 
-        // 세션 파기 (로그아웃과는 별개)
+        // // 현재 로그인된 사용자와 삭제하려는 사용자의 idx가 일치하는지 확인
+        // if (req.session.user.idx !== Number(userIdx)) {
+        //     result.message = "자신의 계정만 삭제할 수 있습니다.";
+        //     return res.status(403).send(result);
+        // }
+
+        const deleteSql = "DELETE FROM user WHERE idx = ?";
+        await connection.query(deleteSql, req.session.user.idx );
+
+        // 세션 정보 삭제
         req.session.destroy((err) => {
             if (err) {
-                result.message = '세션 파기 실패';
-                res.status(500).send(result);
-            } else {
-                result.success = true;
-                result.message = '세션 파기 성공';
-                res.status(200).send(result);
+                console.error('세션 삭제 오류: ', err);
             }
         });
 
         result.success = true;
-        result.message = "회원탈퇴 성공.";
-        res.redirect('/login.jsp');
-
+        result.message = "회원정보 삭제 성공";
+        return res.status(200).send(result);
     } catch (error) {
-        result.message = "회원탈퇴 오류 발생"
-        res.status(500).send(result)
+        console.error('회원정보 삭제 오류: ', error);
+        result.message = "회원정보 삭제 오류 발생";
+        return res.status(500).send(result);
     }
 });
 
