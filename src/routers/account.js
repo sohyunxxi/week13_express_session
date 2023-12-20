@@ -121,7 +121,7 @@ router.post('/logout', (req, res) => {
 
     try {
         // 세션이 존재하면 로그인 상태로 간주
-        if (!req.session) {
+        if (!req.session.user) {
             result.message = '로그인 상태가 아닙니다.';
             return res.status(400).send(result);
         }

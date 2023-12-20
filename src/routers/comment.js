@@ -1,8 +1,20 @@
+//const validator = require('validator');
+const router = require("express").Router()
+const mysql = require('mysql');
+const path = require("path")
+
+const connection = mysql.createConnection({
+    host: 'localhost', 
+    port: 3306,
+    user: 'Sohyunxxi', 
+    password: '1234',
+    database:"week6"
+  });
+
 // 댓글 불러오기
 // 댓글 등록하기
 // 댓글 수정하기
 // 댓글 삭제하기
-const router = require("express").Router()
 
 //------댓글 관련 API-------
 
