@@ -3,13 +3,8 @@ const router = require("express").Router()
 const mysql = require('mysql');
 const path = require("path")
 
-const connection = mysql.createConnection({
-    host: 'localhost', 
-    port: 3306,
-    user: 'Sohyunxxi', 
-    password: '1234',
-    database:"week6"
-  });
+const connection = require('../config/mysql');
+const loginCheck = require('../middleware/login');// 회원가입
 
 // 댓글 불러오기
 // 댓글 등록하기
@@ -19,7 +14,7 @@ const connection = mysql.createConnection({
 //------댓글 관련 API-------
 
 //댓글 불러오기 API
-router.get("/:postIdx",(req,res)=>{
+router.get("/:postIdx",loginCheck,(req,res)=>{
     const postIdx = req.params.postIdx;
     const result = {
         "success" : false, 
@@ -29,11 +24,6 @@ router.get("/:postIdx",(req,res)=>{
         }
     }
     try{
-        if (!req.session.user) {
-            result.message = "로그인 되어 있지 않음";
-            return res.status(401).send(result);
-        }
-
         const selectCommentSql = "SELECT * FROM comment WHERE post_idx = ? ORDER BY created_at DESC";
         connection.query(selectCommentSql, postIdx, (err, rows) => {
             if (err) {
@@ -90,7 +80,7 @@ router.get("/:postIdx",(req,res)=>{
 
 
 //댓글 등록 API
-router.post("/:postIdx", (req,res) => {
+router.post("/:postIdx", loginCheck, (req,res) => {
     const postIdx = req.params.postIdx;
     const { content } = req.body
     const result = {
@@ -100,11 +90,6 @@ router.post("/:postIdx", (req,res) => {
     }
 
     try{
-
-        if (!req.session.user) {
-            result.message = "로그인 되어 있지 않음";
-            return res.status(401).send(result);
-        }
     
         if(!content.trim()){
             result.message = "내용이 공백임"
@@ -134,7 +119,7 @@ router.post("/:postIdx", (req,res) => {
 
 
 //댓글 수정 API
-router.put("/:idx", (req,res) => {
+router.put("/:idx", loginCheck, (req,res) => {
     
     const {content} = req.body
     const commentIdx = req.params.idx
@@ -145,11 +130,6 @@ router.put("/:idx", (req,res) => {
         "data" : null 
     }
     try{
-
-        if (!req.session.user) {
-            result.message = "로그인 되어 있지 않음";
-            return res.status(401).send(result);
-        }
 
         if(!content.trim()){
             result.message = "내용이 공백임"
@@ -192,7 +172,7 @@ router.put("/:idx", (req,res) => {
 })
 
 //댓글 삭제 
-router.delete("/:idx", (req,res) => {
+router.delete("/:idx", loginCheck, (req,res) => {
   
     const commentIdx = req.params.idx;
     const userIdx = req.session.user.idx;
@@ -202,10 +182,6 @@ router.delete("/:idx", (req,res) => {
         "data" : null 
     }
     try{
-        if (!req.session.user) {
-            result.message = "로그인 되어 있지 않음";
-            return res.status(401).send(result);
-        }
 
         const selectUserSql = "SELECT user_idx FROM comment WHERE idx = ?";
         connection.query(selectUserSql, commentIdx, (err, userIdxResult) => {

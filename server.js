@@ -7,23 +7,8 @@ const mysql = require("mysql");
 const app = express()
 const port = 8000
 
-const connection = mysql.createConnection({
-    host: 'localhost', 
-    port: 3306,
-    user: 'Sohyunxxi', 
-    password: '1234',
-    database:"week6"
-});
-
-const sessionStore = new session.MemoryStore();
-
-const sessionObj = {
-  secret: 'session',
-  resave: false,
-  saveUninitialized: true,
-  store: sessionStore,
-
-};
+const connection = require('./src/config/mysql');
+const sessionObj = require('./src/config/session');
 
 app.use(express.json()) //json 가지고 통신할 수 있게 해주는 설정. -> 받아온 값을 다시 json으로 바꾸는 등등..
 app.use(session(sessionObj)); //모든 url에 접근시 적용
