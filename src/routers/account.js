@@ -1,4 +1,4 @@
-const validator = require('validator');
+const validator = require('../modules/accountValidator');
 const router = require("express").Router()
 const mysql = require('mysql');
 const path = require("path")
@@ -11,32 +11,6 @@ const connection = mysql.createConnection({
     database:"week6"
   });
 
-// 아이디 유효성 검증 함수
-const validateId = (id) => {
-    return validator.isAlphanumeric(id) && validator.isLength(id, { min: 6, max: 12 });
-};
-
-// 비밀번호 유효성 검증 함수
-const validatePassword = (password) => {
-    return validator.matches(password, /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/);
-};
-
-// 이메일 유효성 검증 함수
-const validateEmail = (email) => {
-    return validator.isEmail(email);
-};
-
-// 전화번호 유효성 검증 함수
-const validateTel = (tel) => {
-    return validator.isNumeric(tel) && validator.isLength(tel, { min: 11, max: 11 });
-};
-
-module.exports = {
-    validateId,
-    validatePassword,
-    validateEmail,
-    validateTel,
-};
 
 // 회원가입
 // 회원정보 불러오기
@@ -47,73 +21,58 @@ module.exports = {
 // 아이디 찾기
 // 비밀번호 찾기
 
-router.post('/login', (req, res) => {
+router.post('/login', (req, res, next) => {
     try {
-        const { id, pw } = req.body;
+            const { id, pw } = req.body;
+            const result = {
+                success: false,
+                message: '로그인 실패',
+                data: null,
+            };
 
-        const idReq = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,12}$/;
-        const pwReg = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/;
+        if (!id || id === "" || id === undefined) throw new Error('아이디 값이 없습니다.');
 
-        const result = {
-            "success": false,
-            "message": "로그인 실패",
-            "data": null
-        };
+        if (!pw || pw === "" || pw === undefined) throw new Error('비밀번호 값이 없습니다.');
 
-        // id 정규표현식
-        if (!idReq.test(id)) {
-            result.message = "아이디는 6자리 이상 12자리 이하의 영어와 숫자 조합으로 작성해주세요.";
-            return res.status(400).send(result);
-        }
-        // pw 정규표현식
-        if (!pwReg.test(pw)) {
-            result.message = "비밀번호는 6자리 이상 16자리 이하의 영어,숫자,특수문자 조합으로 작성해주세요.";
-            return res.status(400).send(result);
-        }
+        if (!validator.idValidator(id)) throw new Error('아이디는 6자리 이상 12자리 이하의 영어와 숫자 조합으로 작성해주세요.');
 
-        // DB 통신
-        const selectSql = "SELECT * FROM user WHERE id = ? AND pw = ?";
+        if (!validator.pwValidator(pw)) throw new Error('비밀번호는 6자리 이상 16자리 이하의 영어, 숫자, 특수문자 조합으로 작성해주세요.');
+
+
+        const selectSql = 'SELECT * FROM user WHERE id = ? AND pw = ?';
+
         connection.query(selectSql, [id, pw], (err, rows) => {
             if (err) {
                 console.error('로그인 오류: ', err);
-                result.message = '로그인 실패';
-                return res.status(500).send(result);
+                return next(new Error('로그인 실패'));
             }
 
-            // 아이디가 없음
             if (rows.length === 0) {
-                result.message = "해당하는 아이디가 없습니다.";
-                return res.status(400).send(result);
+                return next(new Error('해당하는 아이디가 없습니다.'));
             }
 
-            // 로그인 성공
+            const userDataFromDB = rows[0];
             result.success = true;
             result.message = '로그인 성공';
-            result.data = { id, pw };
 
-            // 데이터베이스에서 조회된 정보로 result.data 설정
-            const userDataFromDB = rows[0];
             result.data = {
                 userId: userDataFromDB.id,
                 userPw: userDataFromDB.pw,
-                
             };
 
-            // 세션에 사용자 정보 저장
             req.session.user = userDataFromDB;
-            res.sendFile(path.join(__dirname, "../../public/mainPage.html"))
-
+            res.sendFile(path.join(__dirname, '../../public/mainPage.html'));
         });
+
     } catch (error) {
-        // 로그인 실패
-        console.error('로그인 실패: ', error);
-        result.message = "로그인 실패";
-        res.status(500).send(result);
+        console.error('로그인 실패: ', error.message);
+        return next(error);
     }
 });
 
+
 // 로그아웃 API
-router.post('/logout', (req, res) => {
+router.post('/logout', (req, res, next) => {
     const result = {
         success: false,
         message: ''
@@ -129,8 +88,8 @@ router.post('/logout', (req, res) => {
         // 세션 파기 (로그아웃)
         req.session.destroy((err) => {
             if (err) {
-                result.message = '로그아웃 실패';
-                res.status(500).send(result);
+                console.error('로그아웃 오류: ', err);
+                return next(new Error('로그아웃 실패'));
             } else {
                 result.success = true;
                 result.message = '로그아웃 성공';
@@ -139,14 +98,12 @@ router.post('/logout', (req, res) => {
         });
     } catch (error) {
         result.message = '로그아웃 오류 발생';
-        res.status(500).send(result);
+        return next(error);    
     }
 });
 
-
-
 // id 찾기 API
-router.get("/findid", (req, res) => {
+router.get("/findid", (req, res, next) => {
     const { name, email } = req.body;
 
     const result = {
@@ -154,14 +111,10 @@ router.get("/findid", (req, res) => {
         message: "",
         data: null
     };
-    const nameReg = /^[a-zA-Z가-힣]{2,50}$/;
-    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
     try {
-        if (!nameReg.test(name) || !emailReg.test(email)) {
-            result.success = false;
-            result.message = "입력값이 유효하지 않습니다.";
-            return res.status(400).send(result);
+        if (!validator.nameValidator(name) || !validator.emailValidator(email)) {
+            throw new Error('입력값이 유효하지 않습니다.');
         }
 
         // 아이디 찾기 쿼리
@@ -169,8 +122,8 @@ router.get("/findid", (req, res) => {
         connection.query(selectSql, [name, email], (err, rows) => {
             if (err) {
                 console.error('아이디 찾기 오류: ', err);
-                result.message = '아이디찾기 실패';
-                return res.status(500).send(result);
+                return next(new Error('아이디 찾기 실패'));
+
             }
 
             if (rows.length === 0) {
@@ -187,15 +140,14 @@ router.get("/findid", (req, res) => {
         });
 
     } catch (error) {
-        result.success = false;
         result.message = "아이디 찾기 오류 발생";
-        res.status(500).send(result);
+        return next(error);
     }
 });
 
 
 //pw 찾기
-router.get("/findpw", (req,res) => { //다른 방식으로 적기 (/ 사용할것)
+router.get("/findpw", (req,res,next) => { //다른 방식으로 적기 (/ 사용할것)
     const { name, email, id } = req.body
 
     const result = {
@@ -203,26 +155,14 @@ router.get("/findpw", (req,res) => { //다른 방식으로 적기 (/ 사용할�
         "message" : "",
         "data" : null 
     }
-    const nameReg = /^[a-zA-Z가-힣]{2,50}$/
-    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    const idReq = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,12}$/;
-
     try{
 
-        if(!nameReg.test(name)){
-            result.message = "이름은 영어나 한글로 2~50자리"
-            return res.status(400).send(result)
-        }
+        if (!validator.nameValidator(name)) throw new Error('이름은 영어나 한글로 2~50자리.');
         
-        if(!emailReg.test(email)){
-            result.message = "이메일 양식에 맞춰서 작성, ex) kaka1234@gmail.com"
-            return res.status(400).send(result)
-        }
-
-        if(!idReq.test(id)){
-            result.message = "아이디는 6자리이상 12자리이하 영어숫자 조합"
-            return res.status(400).send(result)
-        }
+        if (!validator.emailValidator(email)) throw new Error('이메일 양식에 맞춰서 작성, ex) kaka1234@gmail.com');
+        
+        if (!validator.idValidator(id)) throw new Error('아이디는 6자리이상 12자리이하 영어숫자 조합');
+        
 
         // 아이디 찾기 쿼리
         const selectSql = "SELECT pw FROM user WHERE name = ? AND email = ? AND id = ?";
@@ -248,9 +188,8 @@ router.get("/findpw", (req,res) => { //다른 방식으로 적기 (/ 사용할�
 
        
     } catch (error){
-        result.success = false
         result.message = "비밀번호 찾기 오류 발생"
-        res.status(500).send(result)
+        return next(error);
     }
 })
 
@@ -266,23 +205,26 @@ router.post("/", (req, res) => {
         success: false,
         message: '',
         data: null,
-    };
+    };  
 
-    const idReq = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,12}$/;
-    const pwReg = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/;
-    const nameReg = /^[a-zA-Z가-힣]{2,50}$/;
-    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    const telReg = /^[0-9]{11}$/;  
-    const birthReg = /^\d{8}$/;
-    const genderReg = /^(남성|여성)$/;
-  
-
-    if (!idReq.test(id) || !pwReg.test(pw) || !pwReg.test(confirmPw) ||
-        !telReg.test(tel) || !emailReg.test(email) || !nameReg.test(name) ||!birthReg.test(birth) || !genderReg.test(gender) ||
-        confirmPw !== pw) {
-        result.message = "입력값이 유효하지 않습니다.";
-        return res.status(400).send(result);
-    }
+    if (!validator.nameValidator(name)) throw new Error('이름은 영어나 한글로 2~50자리.');
+    
+    if (!validator.emailValidator(email)) throw new Error('이메일 양식에 맞춰서 작성, ex) kaka1234@gmail.com');
+    
+    if (!validator.idValidator(id)) throw new Error('아이디는 6자리이상 12자리이하 영어숫자 조합');
+    
+    if (!validator.telValidator(tel)) throw new Error('이름은 영어나 한글로 2~50자리.');
+    
+    if (!validator.pwValidator(pw)) throw new Error('비밀번호 입력 오류');
+    
+    if (!validator.pwValidator(confirmPw)) throw new Error('확인 비밀번호 입력 오류');
+    
+    if (!validator.birthValidator(birth)) throw new Error('생일 입력값 오류');
+    
+    if (!validator.genderValidator(gender)) throw new Error('성별 입력값 오류');
+    
+    if( confirmPw !== pw) throw new Error('비밀번호 일치 안함')
+    
 
     // 중복 확인
 
@@ -334,10 +276,6 @@ router.get("/my", (req, res) => {
         message: '',
         data: null,
     };
-
-    const pwReg = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/;
-    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    const telReg = /^[0-9]{11}$/;
 
     try {
         if (!req.session.user) {
@@ -394,51 +332,29 @@ router.put("/my", (req, res) => {
         data: null,
     };
 
-    const pwReg = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()-_+=])[A-Za-z\d!@#$%^&*()-_+=]{6,16}$/;
-    const emailReg = /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    const telReg = /^[0-9]{11}$/
     //유효성 관련 변수
-
     try{
 
         if(!req.session.user){
             result.message = "로그인 되어 있지 않음"
-            //return res.status(401).send(result)
-            res.redirect('/login.jsp');
-
+            return res.status(401).send(result)
         }
 
-        if(!pwReg.test(pw)){
-            result.message = "비밀번호는 6-16자리 영어 숫자 특수기호 조합"
-            return res.status(400).send(result)
-            
-        }
-        if(!pwReg.test(confirmPw)){
-            result.message = "비밀번호는 6-16자리 영어 숫자 특수기호 조합"
-            return res.status(400).send(result)
-            
-        }
-        if(!pwReg.test(confirmPw)){
-            result.message = "비밀번호 불일치"
-            return res.status(400).send(result)
-        }
-        if(!telReg.test(tel)){
-            result.message = "전화번호는 11자리 숫자만"
-            return res.status(400).send(result)
-            
-        }
-        if(!emailReg.test(email)){
-            result.message = "이메일 양식에 맞춰서 작성, ex) kaka1234@gmail.com"
-            return res.status(400).send(result)
-            
-        }
-        if(confirmPw!== pw){
-            result.message = "비밀번호가 일치하지 않습니다."
-            return res.status(400).send(result)
-            
-        }
+        if (!validator.idValidator(id)) throw new Error('아이디는 6자리이상 12자리이하 영어숫자 조합');
+        
+        if(!validator.pwValidator(pw)) throw new Error('비밀번호는 6-16자리 영어 숫자 특수기호 조합');      
+        
+        if(!validator.pwValidator(confirmPw)) throw new Error('비밀번호는 6-16자리 영어 숫자 특수기호 조합');            
+        
+        if(!validator.telValidator(tel)) throw new Error('전화번호는 11자리 숫자만');           
+        
+        if(!validator.emailValidator(email)) throw new Error('이메일 양식에 맞춰서 작성, ex) kaka1234@gmail.com');           
+        
+        if(confirmPw!== pw) throw new Error('비밀번호가 일치하지 않습니다.');            
+        
 
         const updateSql = "UPDATE user SET pw = ?, email = ?, tel = ?, gender = ?, address = ?, birth = ? WHERE idx = ?";
+
         connection.query(updateSql, [pw, email, tel, gender, address, birth , req.session.user.idx], (err, rows) => {
             if (err) {
                 console.error('정보 수정 오류: ', err);
@@ -457,10 +373,9 @@ router.put("/my", (req, res) => {
                 birth : birth
             };
 
-                return res.status(200).send(result);
-        
-        });
+            return res.status(200).send(result);     
 
+        });
     }
     catch(error){
         result.message = "회원정보 수정 오류 발생"
@@ -484,14 +399,8 @@ router.delete("/my", async (req, res) => {
             return res.status(401).send(result);
         }
 
-        // // 현재 로그인된 사용자와 삭제하려는 사용자의 idx가 일치하는지 확인
-        // if (req.session.user.idx !== Number(userIdx)) {
-        //     result.message = "자신의 계정만 삭제할 수 있습니다.";
-        //     return res.status(403).send(result);
-        // }
-
         const deleteSql = "DELETE FROM user WHERE idx = ?";
-        await connection.query(deleteSql, req.session.user.idx );
+        connection.query(deleteSql, req.session.user.idx );
 
         // 세션 정보 삭제
         req.session.destroy((err) => {
@@ -510,5 +419,9 @@ router.delete("/my", async (req, res) => {
     }
 });
 
-module.exports = router //이렇게 export를 적어야 import 가능함.
+// Error handling middleware
+router.use((err, req, res, next) => {
+    res.status(400).send({ success: false, message: err.message });
+});
 
+module.exports = router //이렇게 export를 적어야 import 가능함.

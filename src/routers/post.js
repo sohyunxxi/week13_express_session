@@ -1,4 +1,4 @@
-//const validator = require('validator');
+const validator = require('../modules/postValidator');
 const router = require("express").Router()
 const mysql = require('mysql');
 const path = require("path")
@@ -18,7 +18,7 @@ const connection = mysql.createConnection({
 //------게시물 관련 API-------
 
 //게시물 목록 불러오기
-router.get("/", (req, res) => {
+router.get("/", (req, res, next) => {
     const result = {
         "success": false,
         "message": "",
@@ -29,27 +29,36 @@ router.get("/", (req, res) => {
     
     try {
         if (!req.session.user) {
-            result.message = "로그인 상태가 아닙니다.";
-            return res.status(401).send(result);
+            return next(new Error('로그인 상태가 아닙니다.'));
         }
 
         const selectSql = "SELECT * FROM post ORDER BY created_at DESC;";
         connection.query(selectSql, (err, rows) => {
             if (err) {
                 console.error('게시물 불러오기 오류: ', err);
-                result.message = '게시물 불러오기 실패';
-                return res.status(500).send(result);
+                return next(new Error('게시물 불러오기 실패'));
+
             }
+            const selectUserSql = "SELECT id FROM user WHERE idx = ?;";
+            connection.query(selectUserSql, rows[0].user_idx, (err, userIdResult) => {
+                if (err) {
+                    console.error('id 가져오기 실패 : ', err);
+                    return next(new Error('id 가져오기 실패'));                
+                }
+
+                if (userIdResult.length === 0) {
+                    return next(new Error('사용자가 존재하지 않음'));
+                }
 
             // 배열에 각 게시물 정보 추가
             for (let i = 0; i < rows.length; i++) {
                 const post = {
                     postIdx: rows[i].idx,
                     postWriterIdx: rows[i].user_idx,
-                    postingWriterId: rows[i].title,
+                    postingWriterId: userIdResult[0].id,
                     postingContent: rows[i].content,
-                    postingTitle: rows[i].created_at,
-                    postingDate: rows[i].updated_at  // created_at으로 변경
+                    postingTitle: rows[i].title,
+                    postingDate: rows[i].created_at  // created_at으로 변경
                 };
 
                 // 배열에 게시물 추가
@@ -61,17 +70,16 @@ router.get("/", (req, res) => {
 
             return res.status(200).send(result);
         });
+    });
 
     } catch (error) {
         console.error('전체 게시물 불러오기 오류: ', error);
-        result.success = false;
-        result.message = "전체 게시물 불러오기 오류 발생";
-        res.status(500).send(result);
+        return next(error);
     }
 });
 
 //게시물 불러오기
-router.get("/:postIdx", (req, res) => {
+router.get("/:postIdx", (req, res, next) => {
     const postIdx = req.params.postIdx;
 
     const result = {
@@ -82,8 +90,7 @@ router.get("/:postIdx", (req, res) => {
 
     try {
         if (!req.session.user) {
-            result.message = "로그인 상태가 아님";
-            return res.status(401).send(result);
+            return next(new Error('로그인 상태가 아닙니다.'));
         }
 
         const selectSql = "SELECT * FROM post WHERE idx = ?;";
@@ -95,21 +102,18 @@ router.get("/:postIdx", (req, res) => {
             }
 
             if (rows.length === 0) {
-                result.message = '게시물이 존재하지 않음';
-                return res.status(404).send(result);
+                return next(new Error('게시물이 존재하지 않음'));
             }
 
             const selectUserSql = "SELECT id FROM user WHERE idx = ?;";
             connection.query(selectUserSql, rows[0].user_idx, (err, userIdResult) => {
                 if (err) {
                     console.error('id 가져오기 실패 : ', err);
-                    result.message = 'id 가져오기 실패';
-                    return res.status(500).send(result);
+                    return next(new Error('id 가져오기 실패'));
                 }
 
                 if (userIdResult.length === 0) {
-                    result.message = '사용자가 존재하지 않음';
-                    return res.status(404).send(result);
+                    return next(new Error('사용자가 존재하지 않음'));
                 }
 
                 // 한 번에 초기화
@@ -122,7 +126,6 @@ router.get("/:postIdx", (req, res) => {
                     postingCreated: rows[0].created_at,
                     postingUpdated: rows[0].updated_at
                 };
-
                 result.success = true;
                 result.message = "게시물 불러오기 성공";
                 res.status(200).send(result);
@@ -130,17 +133,15 @@ router.get("/:postIdx", (req, res) => {
         });
 
     } catch (error) {
-        console.error('게시물 가져오기 오류 발생: ', error);
-        result.success = false;
-        result.message = "게시물 가져오기 오류 발생";
-        res.status(500).send(result);
+        console.error('게시물 가져오기 오류 발생: ', error.message);
+        return next(error);
     }
 });
 
 
 
 //게시물 쓰기
-router.post("/", (req,res) => {
+router.post("/", (req,res, next) => {
     
     const { content, title } = req.body
 
@@ -151,25 +152,19 @@ router.post("/", (req,res) => {
     }
 
     try{
-        if(!req.session.user){
-            result.message = "로그인 상태가 아님"
-            return res.status(401).send(result)
+        if (!req.session.user) {
+            return next(new Error('로그인 상태가 아닙니다.'));
         }
-        if(!content.trim()){ //내용 비어있는 경우
-            result.message = "내용을 입력해주세요"
-            return res.status(400).send(result)
-        }
-        
-        if(!title.trim()){
-            result.message = "제목을 입력해주세요."
-            return res.status(400).send(result)
-        }
+        if (!validator.contentValidator(content)) throw new Error('내용을 입력해주세요.');
+    
+        if (!validator.titleValidator(title)) throw new Error('제목을 입력해주세요.');
+ 
         const insertSql = "INSERT INTO post (title, content, user_idx) VALUES (?, ?, ?)";
+        
         connection.query(insertSql, [title, content, req.session.user.idx], (err) => {
             if (err) {
                 console.error('게시물 등록 오류: ', err);
-                result.message = '게시물 등록 실패';
-                return res.status(500).send(result);
+                return next(new Error('게시물 등록 실패'));
             }
 
             result.success = true;
@@ -180,14 +175,13 @@ router.post("/", (req,res) => {
         });
 
     } catch (error){
-        result.success = false
         result.message = "게시물 작성 오류 발생"
-        res.status(500).send(result)
+        return next(error);    
     }
 })
 
 //게시물 수정하기
-router.put("/:postIdx", (req, res) => {
+router.put("/:postIdx", (req, res, next) => {
     const postIdx = req.params.postIdx;
     const userIdx = req.session.user.idx;
 
@@ -201,18 +195,11 @@ router.put("/:postIdx", (req, res) => {
 
     try {
         if (!req.session.user) {
-            result.message = "로그인 상태가 아님";
-            return res.status(401).send(result)
+            return next(new Error('로그인 상태가 아닙니다.'));
         }
-        if (!title.trim()) {
-            result.message = "제목을 입력해주세요.";
-            return res.status(400).send(result);
-        }
-
-        if (!content.trim()) {
-            result.message = "내용을 입력해주세요.";
-            return res.status(400).send(result);
-        }
+        if (!validator.contentValidator(content)) throw new Error('내용을 입력해주세요.');
+    
+        if (!validator.titleValidator(title)) throw new Error('제목을 입력해주세요.');
 
         const selectUserSql = "SELECT user_idx FROM post WHERE idx = ?";
         connection.query(selectUserSql, postIdx, (err, userIdxResult) => {
@@ -252,7 +239,7 @@ router.put("/:postIdx", (req, res) => {
 
 
 //게시물 삭제하기
-router.delete("/:idx", (req, res) => {
+router.delete("/:idx", (req, res, next) => {
     const postIdx = req.params.idx;
     const userIdx = req.session.user.idx;
 
@@ -263,8 +250,7 @@ router.delete("/:idx", (req, res) => {
 
     try {
         if (!req.session.user) {
-            result.message = "로그인 상태가 아님";
-            return res.status(401).send(result)
+            return next(new Error('로그인 상태가 아닙니다.'));
         }
 
         const selectUserSql = "SELECT user_idx FROM post WHERE idx = ?";
@@ -299,6 +285,11 @@ router.delete("/:idx", (req, res) => {
         result.message = "게시물 삭제 오류 발생";
         res.status(500).send(result);
     }
+});
+
+// Error handling middleware
+router.use((err, req, res, next) => {
+    res.status(400).send({ success: false, message: err.message });
 });
 
 module.exports = router
