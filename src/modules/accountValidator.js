@@ -5,7 +5,7 @@ const emailValidator = (email) => /^[0-9a-zA-Z._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2
 const telValidator = (tel) => /^[0-9]{11}$/.test(tel);
 const birthValidator = (birth) => /^\d{4}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])$/.test(birth);
 const genderValidator = (gender) => /^(1|2)$/.test(gender);
-const addressValidator = (address)=>/^[가-힣a-zA-Z]{2,}$/.test(address);
+const addressValidator = (address) => /^(?![\s]+$)[가-힣a-zA-Z\s]{2,}$/.test(address); //왜안되니...
 
 module.exports = {
   idValidator,

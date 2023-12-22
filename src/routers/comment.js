@@ -4,7 +4,7 @@ const mysql = require('mysql');
 const path = require("path")
 
 const connection = require('../config/mysql');
-const loginCheck = require('../middleware/login');// 회원가입
+const loginCheck = require('../middleware/loginCheck');
 
 // 댓글 불러오기
 // 댓글 등록하기

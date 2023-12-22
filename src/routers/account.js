@@ -4,7 +4,7 @@ const mysql = require('mysql');
 const path = require("path")
 
 const connection = require('../config/mysql');
-const loginCheck = require('../middleware/login');
+const loginCheck = require('../middleware/loginCheck');
 
 // 회원정보 불러오기
 // 회원정보 수정
@@ -233,6 +233,8 @@ router.get("/findpw", (req,res,next) => {
 
 
 // 회원가입 API -> 더 나은 구조 생각해보기.
+// 주소를 입력하지 않아도 그냥 넘어가는 이유??
+
 router.post("/", (req, res, next) => {
     const { id, pw, confirmPw, name, email, tel, birth, address, gender } = req.body;
 
@@ -241,51 +243,75 @@ router.post("/", (req, res, next) => {
         message: '',
         data: null,
     };  
+
     try{
-        if (!validator.nameValidator(name)) next({
-            message : "유효하지 않은 이름 입력 양식",
-            status : 400
-        })
+        if (!validator.nameValidator(name)) {
+            return next({
+                message : "유효하지 않은 이름 입력 양식",
+                status : 400
+            })
+        }
         
-        if (!validator.emailValidator(email)) next({
-            message : "유효하지 않은 이메일 입력 양식",
-            status : 400
-        })
-        if (!validator.idValidator(id)) next({
-            message : "유효하지 않은 아이디 입력 양식",
-            status : 400
-        })
-        if (!validator.telValidator(tel)) next({
-            message : "유효하지 않은 전화번호 입력 양식",
-            status : 400
-        })
+        if (!validator.emailValidator(email)) {
+            return next({
+                message : "유효하지 않은 이메일 입력 양식",
+                status : 400
+            })
+            
+        }
+        if (!validator.idValidator(id)) {
+            return next({
+                message : "유효하지 않은 아이디 입력 양식",
+                status : 400
+            })
+        }
         
-        if (!validator.pwValidator(pw)) next({
-            message : "유효하지 않은 비밀번호 입력 양식",
-            status : 400
-        })
+        if (!validator.telValidator(tel)) {
+            return next({
+                message : "유효하지 않은 전화번호 입력 양식",
+                status : 400
+            })
+        }
         
-        if (!validator.pwValidator(confirmPw)) next({
-            message : "유효하지 않은 확인 비밀번호 입력 양식",
-            status : 400
-        })
+        if (!validator.pwValidator(pw)) {
+            return next({
+                message : "유효하지 않은 비밀번호 입력 양식",
+                status : 400
+            })
+        }
         
-        if (!validator.birthValidator(birth))next({
-            message : "유효하지 않은 생일 입력 양식",
-            status : 400
-        })
+        if (!validator.pwValidator(confirmPw)) {
+            return next({
+                message : "유효하지 않은 확인 비밀번호 입력 양식",
+                status : 400
+            })
+        }
         
-        if (!validator.genderValidator(gender)) next({
-            message : "유효하지 않은 성별 입력 양식",
-            status : 400
-        })
+        if (!validator.birthValidator(birth)){
+            return next({
+                message : "유효하지 않은 생일 입력 양식",
+                status : 400
+            })
+        }
         
-        if( confirmPw !== pw) next({
-            message : "비밀번호 불일치",
-            status : 400
-        })
-        
-    
+        if (!validator.genderValidator(gender)){
+            return next({
+                message : "유효하지 않은 성별 입력 양식",
+                status : 400
+            })
+        }
+        if (!validator.addressValidator(address)) { // 거쳐지지 않는 이유?
+            return next({
+                message : "유효하지 않은 주소 입력 양식",
+                status : 400
+            })    
+        }
+        if(confirmPw !== pw) {
+            return next({
+                message : "비밀번호 불일치",
+                status : 400
+            })
+        }
         // 중복 확인
     
         const checkIdDuplicate = "SELECT * FROM user WHERE id = ?";
@@ -451,13 +477,11 @@ router.put("/my", loginCheck,(req, res, next) => {
                 status : 400
             }) 
         }       
-
         if(!validator.addressValidator(address)) {
             return next({
                 message : "주소 입력 양식 오류",
                 status : 400
             })        
-    
         }
         const updateSql = "UPDATE user SET pw = ?, tel = ?, gender = ?, address = ?, birth = ? WHERE idx = ?";
 
