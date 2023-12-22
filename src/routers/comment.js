@@ -70,7 +70,7 @@ router.get("/:postIdx",loginCheck,(req,res,next)=>{
                     // 모든 댓글 정보를 추가한 후에 응답을 보냄
                     if (i === rows.length - 1) {
                         result.success = true;
-                        result.message = '게시물 수정 성공';
+                        result.message = '댓글 가져오기 성공';
                         return res.status(200).send(result);
                     }
                 });

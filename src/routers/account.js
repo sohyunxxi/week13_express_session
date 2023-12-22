@@ -395,7 +395,7 @@ router.get("/my", loginCheck, (req, res, next) => {
     };
 
     try {
-        const selectSql = "SELECT id, pw, email, name, address, birth, gender FROM user WHERE idx =?";
+        const selectSql = "SELECT id, pw, email, name, address, birth, tel, gender FROM user WHERE idx =?";
         connection.query(selectSql, [req.session.user.idx], (err, rows) => {
             if (err) {
                 console.error('정보 불러오기 오류: ', err);
@@ -420,9 +420,7 @@ router.get("/my", loginCheck, (req, res, next) => {
 });
 
 
-// 회원정보 수정 API -> 주소 부분에서 계속 오류?
-// 한번 정보수정 한 뒤에 다시 정보수정 할려고 하면 주소 부분에서 오류가 있다고 함.
-// next를 계속 연달아서 써서??
+// 회원정보 수정 API -> 전화번호 오류 ㅜㅜ
 
 router.put("/my", loginCheck,(req, res, next) => {
     const { pw, confirmPw, tel, birth, gender, address } = req.body;
@@ -450,7 +448,7 @@ router.put("/my", loginCheck,(req, res, next) => {
         })  
     }        
         
-        if(!validator.telValidator(tel)) {
+        if(!validator.telValidator(tel)) { //안뜸
            return  next({
             message : "전화번호 입력 양식 오류",
             status : 400
