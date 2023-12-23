@@ -1,6 +1,6 @@
 //==========package============//예외처리를 모듈화해서 밖으로 빼기 (유효성 모듈)
 const express=require("express")
-const session = require("express-session")//
+const session = require("express-session")
 //const mysql = require("mysql");
 
 //======Init========
@@ -14,7 +14,7 @@ app.use(express.json()) //json 가지고 통신할 수 있게 해주는 설정. 
 app.use(session(sessionObj)); //모든 url에 접근시 적용
 //======Apis========
 
- // 정상적으로 파일분할.
+// 정상적으로 파일분할.
 const accountApi = require("./src/routers/account")
 app.use("/account", accountApi)
 

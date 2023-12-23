@@ -1,8 +1,5 @@
 const validator = require('../modules/commentValidator');
-const router = require("express").Router()
-const mysql = require('mysql');
-const path = require("path")
-
+const router = require("express").Router();
 const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
 
@@ -85,7 +82,7 @@ router.get("/:postIdx",loginCheck,(req,res,next)=>{
 
 
 //댓글 등록 API
-router.post("/:postIdx", loginCheck, (req,res,next) => {
+router.post("/:postIdx", loginCheck, (req,res,next) => { // 헷갈릴수있어서 body로 받도록 수정
     const postIdx = req.params.postIdx;
     const { content } = req.body
     const result = {
@@ -103,7 +100,6 @@ router.post("/:postIdx", loginCheck, (req,res,next) => {
             })
         }
 
-    
         const insertSql = "INSERT INTO comment ( content, user_idx, post_idx) VALUES (?, ?, ?)";
         connection.query(insertSql, [content, req.session.user.idx,postIdx], (err) => {
             if (err) {

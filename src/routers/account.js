@@ -1,8 +1,5 @@
 const validator = require('../modules/accountValidator');
 const router = require("express").Router()
-const mysql = require('mysql');
-const path = require("path")
-
 const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
 
@@ -16,7 +13,10 @@ const loginCheck = require('../middleware/loginCheck');
 
 // 제대로 된 입력을 받지 않고 아예 생뚱맞은 걸 입력한 경우 예외처리
 
-router.post('/login', (req, res, next) => {
+const { idValidator, pwValidator, nameValidator, emailValidator, genderValidator, birthValidator, addressValidator, telValidator  } = require('../modules/accountValidator');
+
+router.post('/login', idValidator, pwValidator, (req, res, next) => {
+    // 나머지 로직은 그대로 유지
     try {
         const { id, pw } = req.body;
             
@@ -26,22 +26,9 @@ router.post('/login', (req, res, next) => {
             data: null,
         };
 
-        if (!validator.idValidator(id)) {
-            return next({
-                message: '아이디는 6자리 이상 12자리 이하의 영어와 숫자 조합으로 작성해주세요.',
-                status: 400
-            });
-        }
-
-        if (!validator.pwValidator(pw)) {
-            return next({
-                message: '비밀번호는 6자리 이상 16자리 이하의 영어, 숫자, 특수문자 조합으로 작성해주세요.',
-                status: 400
-            });
-        }
-
         const selectSql = 'SELECT * FROM user WHERE id = ? AND pw = ?';
-
+        
+        //try catch가 따로 있어야 함.
         connection.query(selectSql, [id, pw], (err, rows) => {
             if (err) {
                 console.log('로그인 오류: ', err); 
@@ -84,6 +71,7 @@ router.post('/login', (req, res, next) => {
 
 
 
+
 // 로그아웃 API
 router.post('/logout', loginCheck, (req, res, next) => {
     const result = {
@@ -110,6 +98,7 @@ router.post('/logout', loginCheck, (req, res, next) => {
                 res.status(200).send(result);
             }
         });
+
     } catch (error) {
         next(error);
     }
@@ -117,7 +106,7 @@ router.post('/logout', loginCheck, (req, res, next) => {
 
 
 // id 찾기 API
-router.get("/findid", (req, res, next) => {
+router.get("/findid",nameValidator, emailValidator,  (req, res, next) => {
     const { name, email } = req.body;
 
     const result = {
@@ -127,18 +116,6 @@ router.get("/findid", (req, res, next) => {
     };
 
     try {
-        if (!validator.nameValidator(name)){
-            return next({
-                message : "유효한 이름 작성 양식이 아님",
-                status : 400
-            })
-        } 
-        if (!validator.emailValidator(email)) {
-           return next({
-                message : "유효한 이메일 작성 양식이 아님",
-                status : 400
-           })
-        }
 
         // 아이디 찾기 쿼리
         const selectSql = "SELECT id FROM user WHERE name = ? AND email = ?";
@@ -170,8 +147,9 @@ router.get("/findid", (req, res, next) => {
 });
 
 
+
 //pw 찾기
-router.get("/findpw", (req,res,next) => {
+router.get("/findpw", nameValidator, emailValidator, idValidator, (req,res,next) => {
     const { name, email, id } = req.body
 
     const result = {
@@ -180,21 +158,6 @@ router.get("/findpw", (req,res,next) => {
         "data" : null 
     }
     try{
-        if (!validator.nameValidator(name)) next({
-            message : "유효한 이름 입력 양식이 아님",
-            status : 400
-        })
-        
-        if (!validator.emailValidator(email)) next({
-            message : "유효한 이메일 입력 양식이 아님",
-            status : 400
-        })
-        
-        if (!validator.idValidator(id)) next({
-            message : "유효한 아이디 입력 양식이 아님",
-            status : 400
-        })
-        
         // 아이디 찾기 쿼리
         const selectSql = "SELECT pw FROM user WHERE name = ? AND email = ? AND id = ?";
         connection.query(selectSql, [name, email, id], (err, rows) => {
@@ -221,7 +184,6 @@ router.get("/findpw", (req,res,next) => {
             result.data = { id: foundPw, name, email };
             res.status(200).send(result);
    });
-
        
     } catch (error){
        next(error);
@@ -235,7 +197,7 @@ router.get("/findpw", (req,res,next) => {
 // 회원가입 API -> 더 나은 구조 생각해보기.
 // 주소를 입력하지 않아도 그냥 넘어가는 이유??
 
-router.post("/", (req, res, next) => {
+router.post("/",nameValidator, emailValidator, idValidator, telValidator, pwValidator, birthValidator,genderValidator, addressValidator, (req, res, next) => {
     const { id, pw, confirmPw, name, email, tel, birth, address, gender } = req.body;
 
     const result = {
@@ -245,41 +207,6 @@ router.post("/", (req, res, next) => {
     };  
 
     try{
-        if (!validator.nameValidator(name)) {
-            return next({
-                message : "유효하지 않은 이름 입력 양식",
-                status : 400
-            })
-        }
-        
-        if (!validator.emailValidator(email)) {
-            return next({
-                message : "유효하지 않은 이메일 입력 양식",
-                status : 400
-            })
-            
-        }
-        if (!validator.idValidator(id)) {
-            return next({
-                message : "유효하지 않은 아이디 입력 양식",
-                status : 400
-            })
-        }
-        
-        if (!validator.telValidator(tel)) {
-            return next({
-                message : "유효하지 않은 전화번호 입력 양식",
-                status : 400
-            })
-        }
-        
-        if (!validator.pwValidator(pw)) {
-            return next({
-                message : "유효하지 않은 비밀번호 입력 양식",
-                status : 400
-            })
-        }
-        
         if (!validator.pwValidator(confirmPw)) {
             return next({
                 message : "유효하지 않은 확인 비밀번호 입력 양식",
@@ -287,25 +214,6 @@ router.post("/", (req, res, next) => {
             })
         }
         
-        if (!validator.birthValidator(birth)){
-            return next({
-                message : "유효하지 않은 생일 입력 양식",
-                status : 400
-            })
-        }
-        
-        if (!validator.genderValidator(gender)){
-            return next({
-                message : "유효하지 않은 성별 입력 양식",
-                status : 400
-            })
-        }
-        if (!validator.addressValidator(address)) { // 거쳐지지 않는 이유?
-            return next({
-                message : "유효하지 않은 주소 입력 양식",
-                status : 400
-            })    
-        }
         if(confirmPw !== pw) {
             return next({
                 message : "비밀번호 불일치",
@@ -314,13 +222,13 @@ router.post("/", (req, res, next) => {
         }
         // 중복 확인
     
-        const checkIdDuplicate = "SELECT * FROM user WHERE id = ?";
-        connection.query(checkIdDuplicate, [id], (err, idRows) => {
+        const checkIdDuplicate = "SELECT * FROM user WHERE id = ? AND email=?";
+        connection.query(checkIdDuplicate, [id, email], (err, idRows) => {
             if (err) {
-                console.error('회원가입 오류 - 아이디 중복: ', err);
+                console.error('회원가입 오류 - 중복: ', err);
                 return next({
                     success: false,
-                    message: '회원가입 실패 - 아이디 중복',
+                    message: '회원가입 실패 -  중복',
                     data: null,
                 });
                
@@ -329,61 +237,35 @@ router.post("/", (req, res, next) => {
             if (idRows.length > 0) {
                 return next({
                     success: false,
-                    message: "아이디가 이미 사용 중입니다.",
+                    message: "이미 사용 중입니다.",
                     data: null
                 });
             }
 
-                const checkEmailDuplicate = "SELECT * FROM user WHERE email = ?";
-                connection.query(checkEmailDuplicate, [email], (err, rows) => {
-                    if (err) {
-                        console.error('회원가입 오류 - 이메일 중복: ', err);
-                        return next({
-                            success: false,
-                            message: '회원가입 실패 - 이메일 중복',
-                            data: null,
-                        });
-                    
-                    }
-            
-                    if (rows.length > 0) {
-                        return next({
-                            success: false,
-                            message: "이메일이 이미 사용 중입니다.",
-                            data: null
-                        });
-                    }
-
-                       
-                
-                    // 회원가입 쿼리
-                    const insertSql = "INSERT INTO user (name, id, pw, email, birth, tel, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-                    connection.query(insertSql, [name, id, pw, email, birth, tel, address, gender], (err) => {
-                        if (err) {
-                            console.error('회원가입 오류: ', err);
-                            return next({
-                                message : "회원가입 실패",
-                                status : "500"
-                            })
-            
-                        }
-            
-                        result.success = true;
-                        result.message = '회원가입 성공';
-                        result.data = { id, name, pw, email, birth, tel, gender, address };
-                        res.status(200).send(result);
+            // 회원가입 쿼리
+            const insertSql = "INSERT INTO user (name, id, pw, email, birth, tel, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            connection.query(insertSql, [name, id, pw, email, birth, tel, address, gender], (err) => {
+                if (err) {
+                    console.error('회원가입 오류: ', err);
+                    return next({
+                        message : "회원가입 실패",
+                        status : "500"
                     })
-             
-                });
+                }
+    
+                result.success = true;
+                result.message = '회원가입 성공';
+                result.data = { id, name, pw, email, birth, tel, gender, address };
+                res.status(200).send(result);
+            })
         });
+    
     }
     catch(error){
         next(error);
     }
 
 });
-
-
 
 // 회원정보 보기 API
 router.get("/my", loginCheck, (req, res, next) => {
@@ -420,9 +302,9 @@ router.get("/my", loginCheck, (req, res, next) => {
 });
 
 
-// 회원정보 수정 API -> 전화번호 오류 ㅜㅜ
+// 회원정보 수정 API
 
-router.put("/my", loginCheck,(req, res, next) => {
+router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderValidator, addressValidator, (req, res, next) => {
     const { pw, confirmPw, tel, birth, gender, address } = req.body;
 
     const result = {
@@ -433,54 +315,22 @@ router.put("/my", loginCheck,(req, res, next) => {
 
     try{
         
-        if(!validator.pwValidator(pw)){
-            return next({
-                message : "비밀번호 입력 양식 오류",
-                status : 400
-            }) 
-        }  
-        
         if(!validator.pwValidator(confirmPw)) {
             return next({
-            message : "재확인 비밀번호 입력 양식 오류",
-            status : 400
-            
-        })  
-    }        
-        
-        if(!validator.telValidator(tel)) { //안뜸
-           return  next({
-            message : "전화번호 입력 양식 오류",
-            status : 400
-        })   
-    }            
-        
-        if(confirmPw!== pw) 
-        { return  next({
-            message : "비밀번호 불일치",
-            status : 400
-        })  }
-      
-        
-        if(!validator.birthValidator(birth)) 
-        {
-            return next({
-                message : "생일 입력 양식 오류",
+                message : "재확인 비밀번호 입력 양식 오류",
                 status : 400
-            })    
-        }    
-        if(!validator.genderValidator(gender)) {
+            })  
+        }        
+                
+        
+        if(confirmPw!== pw) {
             return next({
-                message : "성별 입력 양식 오류",
+                message : "비밀번호 불일치",
                 status : 400
-            }) 
-        }       
-        if(!validator.addressValidator(address)) {
-            return next({
-                message : "주소 입력 양식 오류",
-                status : 400
-            })        
+            })  
         }
+        
+
         const updateSql = "UPDATE user SET pw = ?, tel = ?, gender = ?, address = ?, birth = ? WHERE idx = ?";
 
         connection.query(updateSql, [pw, tel, gender, address, birth, req.session.user.idx], (err) => {
@@ -509,7 +359,6 @@ router.put("/my", loginCheck,(req, res, next) => {
                 gender,
                 birth,
             };
-
             return res.status(200).send(result);
         });
 
@@ -565,7 +414,6 @@ router.delete("/my", loginCheck,(req, res, next) => {
             message : "회원정보 삭제 오류 발생",
             status : 500
         })
-
     }
 });
 

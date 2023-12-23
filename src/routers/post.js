@@ -1,8 +1,5 @@
 const validator = require('../modules/postValidator');
-const router = require("express").Router()
-const mysql = require('mysql');
-const path = require("path")
-
+const router = require("express").Router();
 const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
 
@@ -35,6 +32,7 @@ router.get("/",loginCheck, (req, res, next) => {
                 });
 
             }
+            //join 쓰기
             const selectUserSql = "SELECT id FROM user WHERE idx = ?;";
             connection.query(selectUserSql, rows[0].user_idx, (err, userIdResult) => {
                 if (err) {
@@ -286,7 +284,7 @@ router.delete("/:idx", loginCheck,(req, res, next) => {
     };
 
     try {
-
+        //수정하기
         const selectUserSql = "SELECT user_idx FROM post WHERE idx = ?";
         connection.query(selectUserSql, postIdx, (err, userIdxResult) => {
             if (err) {
