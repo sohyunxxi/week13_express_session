@@ -1,13 +1,15 @@
-const contentValidator = (content) => {
-    if (!content || content.trim() === "") {
-        return false; // 빈 값이면 유효성 실패
+const contentValidator = (req, res, next)=>{
+    const {content} = req.body;
+    if(!content || content.trim() === ""){
+        return next({
+            message : "내용이 비어있음",
+            status : 400
+        })
     }
-    else{
-        return true;
-    }
-};
-  
-module.exports = {
-    contentValidator
-};
-  
+    next();
+}
+
+module.exports = contentValidator;
+
+//선언형 코드 
+//

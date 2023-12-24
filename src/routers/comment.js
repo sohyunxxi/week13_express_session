@@ -2,6 +2,7 @@ const validator = require('../modules/commentValidator');
 const router = require("express").Router();
 const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
+const contentValidator = require('../modules/commentValidator');
 
 // 댓글 불러오기
 // 댓글 등록하기
@@ -76,13 +77,14 @@ router.get("/:postIdx",loginCheck,(req,res,next)=>{
     }
     catch(error){
         console.error('전체 댓글 불러오기 오류: ', error);
+        connection.end();
         return next(error);
     }
 })
 
 
 //댓글 등록 API
-router.post("/:postIdx", loginCheck, (req,res,next) => { // 헷갈릴수있어서 body로 받도록 수정
+router.post("/:postIdx", loginCheck, contentValidator, (req,res,next) => { // 헷갈릴수있어서 body로 받도록 수정
     const postIdx = req.params.postIdx;
     const { content } = req.body
     const result = {
@@ -92,14 +94,6 @@ router.post("/:postIdx", loginCheck, (req,res,next) => { // 헷갈릴수있어�
     }
 
     try{
-    
-        if(!validator.contentValidator(content)){ // validator 쓰기
-            return next({
-                message : '내용이 공백임',
-                status : 400
-            })
-        }
-
         const insertSql = "INSERT INTO comment ( content, user_idx, post_idx) VALUES (?, ?, ?)";
         connection.query(insertSql, [content, req.session.user.idx,postIdx], (err) => {
             if (err) {
@@ -119,13 +113,14 @@ router.post("/:postIdx", loginCheck, (req,res,next) => { // 헷갈릴수있어�
         });
     } catch (error){
         console.error('댓글 등록 오류 발생: ', error);
+        connection.end();
         return next(error);
     }
 })
 
 
 //댓글 수정 API
-router.put("/:idx", loginCheck, (req,res,next) => {
+router.put("/:idx", loginCheck, contentValidator, (req,res,next) => {
     
     const {content} = req.body
     const commentIdx = req.params.idx
@@ -136,13 +131,6 @@ router.put("/:idx", loginCheck, (req,res,next) => {
         "data" : null 
     }
     try{
-
-        if(!validator.contentValidator(content)){ // validator 쓰기
-            return next({
-                message : '내용이 공백임',
-                status : 400
-            })
-        }
     
         const selectUserSql = "SELECT user_idx FROM comment WHERE idx = ?";
         connection.query(selectUserSql, commentIdx, (err, userIdxResult) => {
@@ -183,6 +171,7 @@ router.put("/:idx", loginCheck, (req,res,next) => {
         });
     } catch (error){
         console.error('댓글 수정 오류 발생: ', error);
+        connection.end();
         return next(error);
     }
 })
@@ -236,6 +225,7 @@ router.delete("/:idx", loginCheck, (req,res,next) => {
 
     } catch (error){
         console.error('댓글 삭제 오류 발생: ', error);
+        connection.end();
         return next(error);
     }
 })

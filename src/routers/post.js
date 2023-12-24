@@ -2,7 +2,8 @@ const validator = require('../modules/postValidator');
 const router = require("express").Router();
 const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
-
+const { Client } = require("pg")
+const { titleValidator, contentValidator }  = require('../modules/postValidator');
 // 게시물 불러오기
 // 게시물 등록하기
 // 게시물 수정하기
@@ -11,270 +12,219 @@ const loginCheck = require('../middleware/loginCheck');
 //------게시물 관련 API-------
 
 //게시물 목록 불러오기
-router.get("/",loginCheck, (req, res, next) => {
-    const result = {
-        "success": false,
-        "message": "",
-        "data": {
-            "posts": [],  // posts 배열 초기화
+router.get("/", loginCheck, async (req, res, next) => {
+    const response = {
+        success: false,
+        message: "",
+        data: {
+            posts: []  // posts 배열 초기화
         }
     };
-    
-    try {
 
-        const selectSql = "SELECT * FROM post ORDER BY created_at DESC;";
-        connection.query(selectSql, (err, rows) => {
-            if (err) {
-                console.error('게시물 불러오기 오류: ', err);
-                return next({
-                    message : "게시물 불러오기 실패",
-                    status : 500
-                });
-
-            }
-            //join 쓰기
-            const selectUserSql = "SELECT id FROM user WHERE idx = ?;";
-            connection.query(selectUserSql, rows[0].user_idx, (err, userIdResult) => {
-                if (err) {
-                    console.error('id 가져오기 실패 : ', err);
-                    return next({
-                        message : "id 불러오기 실패",
-                        status : 500
-                    });           
-                }
-
-                if (userIdResult.length === 0) {
-                    return next({
-                        message : "사용자가 존재하지 않음",
-                        status : 500
-                    });
-                }
-
-            // 배열에 각 게시물 정보 추가 => 더 나은 방식으로 바꾸기
-            for (let i = 0; i < rows.length; i++) {
-                const post = {
-                    postIdx: rows[i].idx,
-                    postWriterIdx: rows[i].user_idx,
-                    postingWriterId: userIdResult[0].id,
-                    postingContent: rows[i].content,
-                    postingTitle: rows[i].title,
-                    postingDate: rows[i].created_at  // created_at으로 변경
-                };
-
-                // 배열에 게시물 추가
-                result.data.posts.push(post);
-            }
-
-            result.success = true;
-            result.message = "게시물 불러오기 성공";
-
-            return res.status(200).send(result);
-        });
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432"
     });
 
+    try {
+        // 클라이언트 연결
+        await client.connect();
+
+        // 게시물 및 사용자 정보 조회 쿼리
+        const selectSql = `
+            SELECT post.*, account.id AS account_id
+            FROM post
+            INNER JOIN account ON post.account_idx = account.idx
+            ORDER BY post.created_at DESC;
+        `;
+
+        // 쿼리 실행
+        const { rows } = await client.query(selectSql);
+
+        // 결과 처리
+        for (let i = 0; i < rows.length; i++) {
+            const post = {
+                postIdx: rows[i].idx,
+                postWriterIdx: rows[i].account_idx,
+                postingWriterId: rows[i].account_id, // 수정: user_id -> account_id
+                postingContent: rows[i].content,
+                postingTitle: rows[i].title,
+                postingDate: rows[i].created_at  // created_at으로 변경
+            };
+
+            // 배열에 게시물 추가
+            response.data.posts.push(post);
+        }
+
+        // 성공 응답 설정
+        response.success = true;
+        response.message = "게시물 불러오기 성공";
+
+        // 클라이언트에 응답 전송
+        res.status(200).send(response);
     } catch (error) {
-        console.error('전체 게시물 불러오기 오류: ', error);
-        return next(error);
+        console.error('게시물 불러오기 오류: ', error);
+        response.message = "게시물 불러오기 실패";
+        next(error);
+    } finally {
+        // 클라이언트 연결 해제
+        if (client) await client.end();
     }
 });
 
 
+
 //게시물 불러오기
-router.get("/:postIdx",loginCheck, (req, res, next) => {
+router.get("/:postIdx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.postIdx;
 
     const result = {
-        "success": false,
-        "message": "",
-        "data": null
+        success: false,
+        message: "",
+        data: null
     };
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432"
+    });
 
     try {
+        await client.connect();
+        const selectSql = `
+            SELECT post.*, account.id AS account_id
+            FROM post
+            INNER JOIN account ON post.account_idx = account.idx
+            WHERE post.idx = $1;
+        `;
+        const values = [postIdx];
+        const data = await client.query(selectSql, values);
+        const row = data.rows;
 
-        const selectSql = "SELECT * FROM post WHERE idx = ?;";
-        connection.query(selectSql, postIdx, (err, rows) => {
-            if (err) {
-                console.error('게시물 불러오기 오류: ', err);
-                return next({
-                    message : "게시물 불러오기 실패",
-                    status : 500
-                })
-
-            }
-
-            if (rows.length === 0) {
-                return next({
-                    message : "게시물이 존재하지 않음",
-                    status : 500
-                })
-            }
-
-            const selectUserSql = "SELECT id FROM user WHERE idx = ?;";
-            connection.query(selectUserSql, rows[0].user_idx, (err, userIdResult) => {
-                if (err) {
-                    console.error('id 가져오기 실패 : ', err);
-                    return next({
-                        status : 500,
-                        message : "아이디 가져오기 실패"
-                    })
-                }
-
-                if (userIdResult.length === 0) {
-                    return next({
-                        message : "사용자가 존재하지 않음",
-                        status : 500
-                    })
-                }
-
-                // 한 번에 초기화
-                result.data = {
-                    postIdx: rows[0].idx,
-                    postWriterIdx: rows[0].user_idx,
-                    postingWriterId: userIdResult[0].id,
-                    postingTitle: rows[0].title,
-                    postingContent: rows[0].content,
-                    postingCreated: rows[0].created_at,
-                    postingUpdated: rows[0].updated_at
-                };
-                result.success = true;
-                result.message = "게시물 불러오기 성공";
-                res.status(200).send(result);
-            });
-        });
-
+        if (row.length > 0) {
+            const post = {
+                postIdx: row[0].idx,
+                postWriterIdx: row[0].account_idx,
+                postingWriterId: row[0].account_id,
+                postingContent: row[0].content,
+                postingTitle: row[0].title,
+                postingDate: row[0].created_at
+            };
+            result.success = true;
+            result.data = post;
+        } else {
+            result.success = false;
+            result.message = "게시물 불러오기 실패";
+            result.data = row;
+        }
     } catch (error) {
         console.error('게시물 가져오기 오류 발생: ', error.message);
-        return next(error);
+        result.message = error.message;
+    } finally {
+        if (client) await client.end(); // 필수
+        // 이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
+        res.send(result);
     }
 });
 
 
 
 //게시물 쓰기
-router.post("/", loginCheck,(req,res, next) => {
-    
-    const { content, title } = req.body
+router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, next) => {
+    const userIdx = req.session.user.idx;
+    const { content, title } = req.body;
 
     const result = {
-        "success" : false, 
-        "message" : "", 
-        "data" : null 
-    }
+        success: false,
+        message: "",
+        data: null
+    };
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432"
+    });
 
-    try{
+    try {
+        await client.connect();
+        const insertSql = "INSERT INTO post (title, content, account_idx) VALUES ($1, $2, $3)";
+        const values = [title, content, userIdx];
+        const data = await client.query(insertSql, values);
 
-        if (!validator.contentValidator(content)) {
-            return next({
-                message : "내용을 입력해주세요",
-                status : 400
-            })
-        }
-    
-        if (!validator.titleValidator(title)){
-            return next({
-                message : "제목을 입력해주세요",
-                status : 400
-            })
-        } 
- 
-        const insertSql = "INSERT INTO post (title, content, user_idx) VALUES (?, ?, ?)";
-        
-        connection.query(insertSql, [title, content, req.session.user.idx], (err) => {
-            if (err) {
-                console.error('게시물 등록 오류: ', err);
-                return next({
-                    message : "게시물 등록 오류",
-                    status : 500
-                });
-            }
-
+        if (data.rowCount > 0) {
             result.success = true;
-            result.message = '게시물 등록 성공';
-            result.data = {title, content };
-            res.status(200).send(result);
-
-        });
-
-    } catch (error){
-        result.message = "게시물 작성 오류 발생"
-        return next(error);    
+            result.data = data.rows;
+        } else {
+            result.success = false;
+            result.message = "게시물 등록 오류";
+        }
+    } catch (e) {
+        result.message = e.message;
+    } finally {
+        if (client) await client.end(); // 필수
+        // 이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
+        res.send(result);
     }
-})
+});
+
+
 
 //게시물 수정하기
-router.put("/:postIdx", loginCheck,(req, res, next) => {
+router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req, res, next) => {
     const postIdx = req.params.postIdx;
     const userIdx = req.session.user.idx;
 
     const { content, title } = req.body;
 
     const result = {
-        "success": false,
-        "message": "",
-        "data": null
+        success: false,
+        message: "",
+        data: null
     };
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432"
+    });
 
     try {
+        await client.connect();
+        const updateSql = "UPDATE post SET title = $1, content = $2 WHERE idx = $3 AND account_idx = $4";
+        const values = [title, content, postIdx, userIdx];
+        const data = await client.query(updateSql, values);
+        const rowCount = data.rowCount; // 업데이트된 행의 수를 가져옴
 
-        if (!validator.contentValidator(content)) {
-            return next({
-                message : '내용을 입력해주세요',
-                status : 400
-            })
+        // DB 통신 결과 처리
+        if (rowCount > 0) {
+            result.success = true;
+            result.message = "업데이트 성공";
+        } else {
+            result.success = false;
+            result.message = "해당 게시물이나 권한이 없습니다.";
         }
-    
-        if (!validator.titleValidator(title)) {
-            return next({
-                message : '제목을 입력해주세요',
-                status : 400
-            })
-        }
 
-        const selectUserSql = "SELECT user_idx FROM post WHERE idx = ?";
-        connection.query(selectUserSql, postIdx, (err, userIdxResult) => {
-            if (err) {
-                console.error('user_idx 가져오기 실패 : ', err);
-                return next({
-                    message : 'user_idx 가져오기 실패',
-                    status : 500
-                })
-            }
-
-            // 여기에서 사용자 idx 비교
-            if (userIdx !== userIdxResult[0].user_idx) {
-                result.message = "해당 게시물 작성자만 게시물을 수정할 수 있습니다.";
-                return next({
-                    message : '해당 작성자가 아님',
-                    status : 403
-                })
-            }
-
-            const updateSql = "UPDATE post SET title = ?, content = ? WHERE idx = ?";
-            connection.query(updateSql, [title, content, postIdx], (err) => {
-                if (err) {
-                    console.error('게시물 수정 오류: ', err);
-                    return next({
-                        message : '게시물 수정 실패',
-                        status : 500
-                    })
-                }
-
-                result.success = true;
-                result.message = '게시물 수정 성공';
-                result.data = { title, content };
-                res.status(200).send(result);
-            });
-        });
-
-    } catch (error) {
-        console.error('게시물 수정 오류 발생: ', error);
-        return next(error);    
+    } catch (e) {
+        result.message = e.message;
+    } finally {
+        if (client) await client.end(); // 필수
+        // 이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
+        res.send(result);
     }
 });
 
 
+
 //게시물 삭제하기
-router.delete("/:idx", loginCheck,(req, res, next) => {
+router.delete("/:idx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.idx;
     const userIdx = req.session.user.idx;
 
@@ -282,47 +232,42 @@ router.delete("/:idx", loginCheck,(req, res, next) => {
         "success": false,
         "message": ""
     };
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432"
+    });
 
     try {
-        //수정하기
-        const selectUserSql = "SELECT user_idx FROM post WHERE idx = ?";
-        connection.query(selectUserSql, postIdx, (err, userIdxResult) => {
-            if (err) {
-                console.error('user_idx 가져오기 실패 : ', err);
-                return next({
-                    message : "user_idx 가져오기 실패",
-                    status : 500
-                })
-            }
+        // 클라이언트 연결
+        await client.connect();
 
-            // 여기에서 사용자 idx 비교
-            if (userIdx !== userIdxResult[0].user_idx) {
-                return next({
-                    message : "일치하지 않는 작성자",
-                    status : 403
-                })
-            }
+        // 게시물 삭제 쿼리
+        const deleteSql = "DELETE FROM post WHERE idx = $1 AND account_idx = $2";
+        const values = [postIdx, userIdx];
+        const data = await client.query(deleteSql, values);
+        const rowCount = data.rowCount; // 삭제된 행의 수를 가져옴
 
-            const deleteSql = "DELETE FROM post WHERE idx = ?";
-            connection.query(deleteSql, postIdx, (err) => {
-                if (err) {
-                    console.error('게시물 삭제 오류: ', err);
-                    return next({
-                        message : "게시물 삭제 오류",
-                        status : 500
-                    })
-                }
+        // DB 통신 결과 처리
+        if (rowCount > 0) {
+            result.success = true;
+            result.message = "게시물 삭제 성공";
+        } else {
+            result.success = false;
+            result.message = "게시물 삭제 실패. 해당 게시물이나 권한이 없습니다.";
+        }
 
-                result.success = true;
-                result.message = '게시물 삭제 성공';
-                res.status(200).send(result);
-            });
-        });
-    } catch (error) {
-        console.error('게시물 삭제 오류 발생: ', error);
-        return next(error);    
+    } catch (e) {
+        result.message = e.message;
+    } finally {
+        if (client) await client.end(); // 필수
+        // 이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
+        res.send(result);
     }
 });
+
 
 // Error handling middleware
 router.use((err, req, res, next) => {

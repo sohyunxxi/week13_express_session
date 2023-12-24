@@ -1,21 +1,25 @@
-const titleValidator = (title) => {
-    if (!title || title.trim() === "") {
-      return false; // 빈 값이면 유효성 실패
+const titleValidator = (req, res, next)=>{
+    const {title} = req.body;
+    if(!title || title.trim() === ""){
+        return next({
+            message : "제목이 비어있음",
+            status : 400
+        })
     }
-    else{
-        return true;
+    next();
+}  
+
+const contentValidator = (req, res, next)=>{
+    const {content} = req.body;
+    if(!content || content.trim() === ""){
+        return next({
+            message : "내용이 비어있음",
+            status : 400
+        })
     }
-};
-  
-const contentValidator = (content) => {
-    if (!content || content.trim() === "") {
-        return false; // 빈 값이면 유효성 실패
-    }
-    else{
-        return true;
-    }
-};
-  
+    next();
+}
+
 module.exports = {
     titleValidator,
     contentValidator,
