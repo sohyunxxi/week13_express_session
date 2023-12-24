@@ -72,7 +72,7 @@ const genderValidator = (req, res, next) =>{
     const { gender } = req.body;
     if(!gender || !/^(1|2)$/.test(gender)){
         return next({
-            message : '생일 양식 틀림',
+            message : '성별 양식 틀림',
             status : 400
         })
     }

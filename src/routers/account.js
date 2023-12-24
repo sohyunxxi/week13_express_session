@@ -244,19 +244,32 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
                 "INSERT INTO account (name, id, pw, email, birth, tel, address, gender) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)";
             const insertValues = [name, id, pw, email, birth, tel, address, gender];
 
-            await client.query(insertSql, insertValues);
-            result.success = true;
-            result.message = "회원가입 성공";
-            result.data = { id, name, pw, email, birth, tel, gender, address };
-            res.status(200).send(result);
-        }
-    } catch (error) {
-        next(error);
-    } finally {
-         if (client) 
-         await client.end();
+            const data = await client.query(insertSql, insertValues);
+            console.log(data.rows)
+            const row = data.rows
+            if(row.length>0){
+                result.success=true
+                result.data= row
+            }
+            else{
+                result.success=true
+                result.message = "해당 계정 없음"
+            }
+            
+        
+        } 
     }
-});
+        catch(e){ // 쓰레기통 구현하면 이 내용들 줄일  수 있음.
+            result.message=e.message
+            console.log(e)
+        } finally{
+            if(client) client.end() //필수
+            //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
+            res.send(result) 
+        }
+        
+    })
+    
 
 
 // 회원정보 보기 API

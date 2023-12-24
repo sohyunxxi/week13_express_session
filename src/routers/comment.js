@@ -3,6 +3,8 @@ const router = require("express").Router();
 const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
 const contentValidator = require('../modules/commentValidator');
+const { Client } = require("pg")
+
 
 // 댓글 불러오기
 // 댓글 등록하기
@@ -12,115 +14,113 @@ const contentValidator = require('../modules/commentValidator');
 //------댓글 관련 API-------
 
 //댓글 불러오기 API
-router.get("/:postIdx",loginCheck,(req,res,next)=>{
+router.get("/:postIdx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.postIdx;
     const result = {
-        "success" : false, 
-        "message" : "",
-        "data" :{
-            "comments":[],
-        }
-    }
-    try{
-        const selectCommentSql = "SELECT * FROM comment WHERE post_idx = ? ORDER BY created_at DESC";
-        connection.query(selectCommentSql, postIdx, (err, rows) => {
-            if (err) {
-                console.error('comment 가져오기 실패 : ', err);
-                return next({
-                    message : "comment 가져오기 실패",
-                    status : 500
-                })
+        success: false,
+        message: "",
+        data: {
+            comments: [],
+        },
+    };
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432",
+    });
 
-            }
-        
-            // 배열에 각 댓글 정보 추가
-            for (let i = 0; i < rows.length; i++) {
-                const selectUserSql = "SELECT id FROM user WHERE idx = ? ";
-                connection.query(selectUserSql, rows[i].user_idx, (err, selectUserResult) => {
-                    if (err) {
-                        console.error('해당 사용자 불러오기 실패 : ', err);
-                        return next({
-                            message : "사용자 불러오기 실패",
-                            status : 500
-                        })
-                    }
-                    if (selectUserResult.length == 0) {
-                        return next({
-                            message : "사용자가 존재하지 않음",
-                            status : 404
-                        })
-                    }
-        
-                    const comment = { //변경하기
-                        commentIdx: rows[i].idx,
-                        commentWriterIdx: rows[i].user_idx,
-                        commentWriterId: selectUserResult[0].id, // 배열에서 요소를 가져와야 함
-                        commentPostIdx: rows[i].post_idx,
-                        commentTitle: rows[i].title,
-                        commentContent: rows[i].content,
-                        commentCreated: rows[i].created_at,
-                        commentUpdated: rows[i].updated_at
-                    };
-        
-                    // 배열에 댓글 추가
-                    result.data.comments.push(comment);
-        
-                    // 모든 댓글 정보를 추가한 후에 응답을 보냄
-                    if (i === rows.length - 1) {
-                        result.success = true;
-                        result.message = '댓글 가져오기 성공';
-                        return res.status(200).send(result);
-                    }
-                });
-            }
-        });
+    try {
+        await client.connect();
+        const selectCommentSql = `
+            SELECT comment.*, account.id AS account_id
+            FROM comment
+            INNER JOIN account ON comment.account_idx = account.idx
+            WHERE comment.post_idx = $1
+            ORDER BY comment.created_at DESC
+        `;
+        const values = [postIdx];
+        const data = await client.query(selectCommentSql, values);
+        const rows = data.rows;
+
+        // 배열에 각 댓글 정보 추가
+        for (let i = 0; i < rows.length; i++) {
+            const comment = {
+                commentIdx: rows[i].idx,
+                commentWriterIdx: rows[i].account_idx,
+                commentWriterId: rows[i].account_id,
+                commentPostIdx: rows[i].post_idx,
+                commentTitle: rows[i].title,
+                commentContent: rows[i].content,
+                commentCreated: rows[i].created_at
+            };
+
+            // 배열에 댓글 추가
+            result.data.comments.push(comment);
+        }
+
+        result.success = true;
+        result.message = "댓글 가져오기 성공";
+        res.status(200).send(result); // 이 부분 수정
+    } catch (e) {
+        result.message = e.message;
+        console.log(e)
+    } finally {
+        if (client) client.end();
     }
-    catch(error){
-        console.error('전체 댓글 불러오기 오류: ', error);
-        connection.end();
-        return next(error);
-    }
-})
+});
+
+
 
 
 //댓글 등록 API
-router.post("/:postIdx", loginCheck, contentValidator, (req,res,next) => { // 헷갈릴수있어서 body로 받도록 수정
+router.post("/:postIdx", loginCheck, contentValidator, async(req,res,next) => { // 헷갈릴수있어서 body로 받도록 수정
     const postIdx = req.params.postIdx;
+    const userIdx = req.session.user.idx
     const { content } = req.body
     const result = {
         "success" : false, 
         "message" : "",
         "data" : null 
     }
-
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432"
+    });
     try{
-        const insertSql = "INSERT INTO comment ( content, user_idx, post_idx) VALUES (?, ?, ?)";
-        connection.query(insertSql, [content, req.session.user.idx,postIdx], (err) => {
-            if (err) {
-                console.error('댓글 등록 오류: ', err);
-                return next({
-                    message : "댓글 등록 실패",
-                    status : 500
-                })
-
-            }
-
-            result.success = true;
-            result.message = '댓글 등록 성공';
-            result.data = {content};
-            res.status(200).send(result);
-
-        });
-    } catch (error){
-        console.error('댓글 등록 오류 발생: ', error);
-        connection.end();
-        return next(error);
+        await client.connect()
+        const insertSql = "INSERT INTO comment (content, account_idx, post_idx) VALUES ($1, $2, $3)";
+        const values = [content, userIdx, postIdx];
+       const data = await client.query(insertSql, values) // query는 비동기 함수니까 await
+       const row = data.rowCount
+       
+       if(row>0){
+        result.success=true
+        result.data= row
+        result.message = "댓글 등록 성공"
+        }
+        else{
+            result.success=false
+            result.message = "댓글 등록 실패"
+            console.log(data)
+        }
+    } catch(e){ // 쓰레기통 구현하면 이 내용들 줄일  수 있음.
+        result.message=e.message
+    } finally{
+        if(client) client.end() //필수
+        //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
+        res.send(result) 
     }
+    
 })
 
 
 //댓글 수정 API
-router.put("/:idx", loginCheck, contentValidator, (req,res,next) => {
+router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {
     
     const {content} = req.body
     const commentIdx = req.params.idx
@@ -130,105 +130,94 @@ router.put("/:idx", loginCheck, contentValidator, (req,res,next) => {
         "message" : "",
         "data" : null 
     }
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432"
+    });
     try{
+        await client.connect()
+        const updateSql = "UPDATE comment SET content = $1 WHERE idx = $2 AND account_idx = $3";
+        const values = [content, commentIdx,userIdx]
+        const data = await client.query(updateSql, values) // query는 비동기 함수니까 await
+       const row = data.rowCount //data는 별에 별 내용이 다 들어가 있어서 테이블은 rows만.
+
+
+        // DB 통신 결과 처리
+        if(row>0){
+            result.success=true
+            result.data= row
+            result.message = "댓글 수정 성공"
+        }
+        else{
+            result.success=true
+            result.message = "댓글 수정 실패"
+        }
+        
     
-        const selectUserSql = "SELECT user_idx FROM comment WHERE idx = ?";
-        connection.query(selectUserSql, commentIdx, (err, userIdxResult) => {
-            if (err) {
-                console.error('user_idx 가져오기 실패 : ', err);
-                return next({
-                    message : 'user_idx 가져오기 실패',
-                    status : 500
-                })
-
-            }
-
-            // 여기에서 사용자 idx 비교
-            if (userIdx !== userIdxResult[0].user_idx) {
-                return next({
-                    message : "해당 댓글 작성자만 댓글을 수정할 수 있습니다.",
-                    status : 403
-                })
-
-            }
-
-            const updateSql = "UPDATE comment SET content = ? WHERE idx = ?";
-            connection.query(updateSql, [content, commentIdx], (err) => {
-                if (err) {
-                    console.error('댓글 수정 오류: ', err);
-                    return next({
-                        message : '댓글 수정 실패',
-                        status : 500
-                    })
-                  
-                }
-
-                result.success = true;
-                result.message = '댓글 수정 성공';
-                result.data = { content };
-                res.status(200).send(result);
-            });
-        });
-    } catch (error){
-        console.error('댓글 수정 오류 발생: ', error);
-        connection.end();
-        return next(error);
+    } catch(e){ // 쓰레기통 구현하면 이 내용들 줄일  수 있음.
+        result.message=e.message
+    } finally{
+        if(client) client.end() //필수
+        //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
+        res.send(result) 
     }
+    
 })
 
 
+
 //댓글 삭제 
-router.delete("/:idx", loginCheck, (req,res,next) => {
+router.delete("/:idx", loginCheck, async (req,res,next) => {
   
     const commentIdx = req.params.idx;
     const userIdx = req.session.user.idx;
     const result = {
         "success" : false, 
-        "message" : "", 
+        "message" : "",
         "data" : null 
     }
+    const client = new Client({
+        user: "ubuntu",
+        password: "1234",
+        host: "localhost",
+        database: "week6",
+        port: "5432"
+    });
+
     try{
 
-        const selectUserSql = "SELECT user_idx FROM comment WHERE idx = ?";
-        connection.query(selectUserSql, commentIdx, (err, userIdxResult) => {
-            if (err) {
-                console.error('user_idx 가져오기 실패 : ', err);
-                return next({
-                    message : 'user_idx 가져오기 실패',
-                    status : 500
-                })
-            }
+        await client.connect()
+        const deleteSql = "DELETE FROM comment WHERE idx = $1 AND account_idx=$2";
+        const values = [commentIdx,userIdx]
+        const data = await client.query(deleteSql, values) // query는 비동기 함수니까 await
+        const row = data.rowCount //data는 별에 별 내용이 다 들어가 있어서 테이블은 rows만.
+ 
+ 
+         // DB 통신 결과 처리
+         if(row>0){
+             result.success=true
+             result.data= row
+             result.message = "게시물 삭제 성공"
 
-            // 여기에서 사용자 idx 비교
-            if (userIdx !== userIdxResult[0].user_idx) {
-                return next({
-                    message : '해당 댓글 작성자만 댓글을 삭제할 수 있습니다.',
-                    status : 403
-                })
-            }
-
-            const deleteSql = "DELETE FROM comment WHERE idx = ?";
-            connection.query(deleteSql, commentIdx, (err) => {
-                if (err) {
-                    console.error('댓글 삭제 오류: ', err);
-                    return next({
-                        message : '댓글 삭제 실패.',
-                        status : 500
-                    })
-                }
-
-                result.success = true;
-                result.message = '댓글 삭제 성공';
-                res.status(200).send(result);
-            });
-        });
-
-    } catch (error){
-        console.error('댓글 삭제 오류 발생: ', error);
-        connection.end();
-        return next(error);
-    }
-})
+         }
+         else{
+             result.success=true
+             result.message = "삭제 권한 없거나 게시물 존재하지 않음"
+         }
+         
+     
+     } catch(e){ // 쓰레기통 구현하면 이 내용들 줄일  수 있음.
+         result.message=e.message
+     } finally{
+         if(client) client.end() //필수
+         //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
+         res.send(result) 
+     }
+     
+ })
 
 router.use((err, req, res, next) => {
     res.status(err.status || 500).send({
