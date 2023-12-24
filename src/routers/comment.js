@@ -14,8 +14,8 @@ const { Client } = require("pg")
 //------댓글 관련 API-------
 
 //댓글 불러오기 API
-router.get("/:postIdx", loginCheck, async (req, res, next) => {
-    const postIdx = req.params.postIdx;
+router.get("/", loginCheck, async (req, res, next) => {
+    const {postIdx} = req.body
     const result = {
         success: false,
         message: "",
@@ -75,10 +75,9 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
 
 
 //댓글 등록 API
-router.post("/:postIdx", loginCheck, contentValidator, async(req,res,next) => { // 헷갈릴수있어서 body로 받도록 수정
-    const postIdx = req.params.postIdx;
+router.post("/", loginCheck, contentValidator, async(req,res,next) => { // 헷갈릴수있어서 body로 받도록 수정
+    const {postIdx,content} = req.body
     const userIdx = req.session.user.idx
-    const { content } = req.body
     const result = {
         "success" : false, 
         "message" : "",
