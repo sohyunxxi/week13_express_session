@@ -1,9 +1,13 @@
+// postgresql.js
 const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
-    user: 'your_user',
-    host: 'your_host',
-    database: 'your_database',
-    password: 'your_password',
-    port: 5432, // PostgreSQL 기본 포트
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    host: process.env.DB_HOST,
+    database: process.env.DB_DATABASE,
+    port: process.env.DB_PORT
 });
+
+module.exports = pool;

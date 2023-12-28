@@ -1,8 +1,10 @@
 const validator = require('../modules/accountValidator');
 const router = require("express").Router()
-const connection = require('../config/mysql');
+//const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
 const { Client } = require("pg")
+const pool = require('../config/postgresql')
+
 // 회원정보 불러오기
 // 회원정보 수정
 // 회원 탈퇴
@@ -14,6 +16,7 @@ const { Client } = require("pg")
 // 제대로 된 입력을 받지 않고 아예 생뚱맞은 걸 입력한 경우 예외처리
 
 const { idValidator, pwValidator, nameValidator, emailValidator, genderValidator, birthValidator, addressValidator, telValidator  } = require('../modules/accountValidator');
+// account.js
 
 router.post('/login', idValidator, pwValidator, async (req, res, next) => {
     const { id, pw } = req.body;
@@ -22,23 +25,14 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
         message: '로그인 실패',
         data: null,
     };
-    const client = new Client({
-        "user" : "ubuntu",
-        "password" : "1234",
-        "host" : "localhost",
-        "database" : "week6",
-        "port" : "5432"
-    })
 
     try {
         // DB 통신
-        await client.connect();
-        console.log("연결됨");
-
         const selectSql = 'SELECT * FROM account WHERE id = $1 AND pw = $2';
         const values = [id, pw];
 
-        const { rows } = await client.query(selectSql, values);
+        const data = await pool.query(selectSql, values);
+        const rows = data.rows;
 
         if (rows.length > 0) {
             result.success = true;
@@ -54,13 +48,10 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
         result.message = '로그인 오류 발생';
         result.error = error;
     } finally {
-        if (client) {
-            await client.end();
-        }
         res.send(result);
+        pool.end()
     }
 });
-
 
 // 로그아웃 API
 router.post('/logout', loginCheck, (req, res, next) => {
@@ -305,17 +296,17 @@ router.get("/my", loginCheck, async (req, res, next) => {
             result.success=true
             result.message = "해당 계정 없음"
         }
-        await connection.query(selectSql, [req.session.user.idx], (err, rows) => {
-            if (err) {
-                console.error('정보 불러오기 오류: ', err);
-                return next({
-                    message : "정보 불러오기 실패",
-                    status : 500
-                })
+        // await connection.query(selectSql, [req.session.user.idx], (err, rows) => {
+        //     if (err) {
+        //         console.error('정보 불러오기 오류: ', err);
+        //         return next({
+        //             message : "정보 불러오기 실패",
+        //             status : 500
+        //         })
 
-            }
+        //     }
            
-        });
+        // });
 
     } catch (error) {
         result.message=error.message
