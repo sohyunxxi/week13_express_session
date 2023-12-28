@@ -26,20 +26,24 @@ router.get("/", loginCheck, async (req, res, next) => {
             comments: [],
         },
     };
-
     try {
-        const selectCommentSql = `
+        if(!postIdx||postIdx==null){
+            return next({
+                message : 'postIdx 값이 없음',
+                status : 400
+            })
+        }
+        const query = {
+            text: `
             SELECT comment.*, account.id AS account_id
             FROM comment
             INNER JOIN account ON comment.account_idx = account.idx
             WHERE comment.post_idx = $1
-            ORDER BY comment.created_at DESC
-        `;
-        const values = [postIdx];
-        const data = await pool.query(selectCommentSql, values);
-        const rows = data.rows;
+            ORDER BY comment.created_at DESC`,
+            values: [postIdx],
+        };
+        const { rows } = await queryConnect(query);
 
-        // 배열에 각 댓글 정보 추가
         for (let i = 0; i < rows.length; i++) {
             const comment = {
                 commentIdx: rows[i].idx,
@@ -50,19 +54,14 @@ router.get("/", loginCheck, async (req, res, next) => {
                 commentContent: rows[i].content,
                 commentCreated: rows[i].created_at
             };
-
-            // 배열에 댓글 추가
             result.data.comments.push(comment);
         }
-
         result.success = true;
         result.message = "댓글 가져오기 성공";
-        res.status(200).send(result); // 이 부분 수정
+        res.status(200).send(result);
     } catch (e) {
         result.message = e.message;
         console.log(e)
-    } finally {
-        
     }
 });
 
@@ -80,14 +79,22 @@ router.post("/", loginCheck, contentValidator, async(req,res,next) => { // 헷�
     }
 
     try{
-        const insertSql = "INSERT INTO comment (content, account_idx, post_idx) VALUES ($1, $2, $3)";
-        const values = [content, userIdx, postIdx];
-       const data = await pool.query(insertSql, values) // query는 비동기 함수니까 await
-       const row = data.rowCount
+        if(!postIdx||postIdx==null){
+            return next({
+                message : 'postIdx 값이 없음',
+                status : 400
+            })
+        }
+        const query = {
+            text: 'INSERT INTO comment (content, account_idx, post_idx) VALUES ($1, $2, $3)',
+            values: [content, userIdx, postIdx],
+        };
+
+        const { rowCount } = await queryConnect(query);
        
-       if(row>0){
+       if(rowCount>0){
         result.success=true
-        result.data= row
+        result.data= rowCount
         result.message = "댓글 등록 성공"
         }
         else{
@@ -117,20 +124,21 @@ router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {
     }
 
     try{
-        const updateSql = "UPDATE comment SET content = $1 WHERE idx = $2 AND account_idx = $3";
-        const values = [content, commentIdx,userIdx]
-        const data = await pool.query(updateSql, values) // query는 비동기 함수니까 await
-       const row = data.rowCount //data는 별에 별 내용이 다 들어가 있어서 테이블은 rows만.
+        const query = {
+            text: 'UPDATE comment SET content = $1 WHERE idx = $2 AND account_idx = $3',
+            values: [content, commentIdx, userIdx],
+        };
 
+        const { rowCount } = await queryConnect(query);
 
         // DB 통신 결과 처리
-        if(row>0){
+        if(rowCount > 0){
             result.success=true
-            result.data= row
+            result.data= rowCount
             result.message = "댓글 수정 성공"
         }
         else{
-            result.success=true
+            result.success=false
             result.message = "댓글 수정 실패"
         }
         
@@ -157,18 +165,16 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
     }
 
     try{
-        const deleteSql = "DELETE FROM comment WHERE idx = $1 AND account_idx=$2";
-        const values = [commentIdx,userIdx]
-        const data = await pool.query(deleteSql, values) // query는 비동기 함수니까 await
-        const row = data.rowCount //data는 별에 별 내용이 다 들어가 있어서 테이블은 rows만.
- 
- 
-         // DB 통신 결과 처리
-         if(row>0){
-             result.success=true
-             result.data= row
-             result.message = "게시물 삭제 성공"
+        const query = {
+            text: 'DELETE FROM comment WHERE idx = $1 AND account_idx=$2',
+            values: [commentIdx, userIdx],
+        };
 
+        const { rowCount } = await queryConnect(query);
+         if(rowCount > 0){
+             result.success=true
+             result.data= rowCount
+             result.message = "댓글 삭제 성공"
          }
          else{
              result.success=true
