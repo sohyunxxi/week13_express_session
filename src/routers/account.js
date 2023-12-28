@@ -1,9 +1,8 @@
 const validator = require('../modules/accountValidator');
 const router = require("express").Router()
-//const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
-const { Client } = require("pg")
 const pool = require('../config/postgresql')
+const queryConnect = require('../modules/queryConnect');
 
 // 회원정보 불러오기
 // 회원정보 수정
@@ -16,7 +15,6 @@ const pool = require('../config/postgresql')
 // 제대로 된 입력을 받지 않고 아예 생뚱맞은 걸 입력한 경우 예외처리
 
 const { idValidator, pwValidator, nameValidator, emailValidator, genderValidator, birthValidator, addressValidator, telValidator  } = require('../modules/accountValidator');
-// account.js
 
 router.post('/login', idValidator, pwValidator, async (req, res, next) => {
     const { id, pw } = req.body;
@@ -31,7 +29,7 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
         const selectSql = 'SELECT * FROM account WHERE id = $1 AND pw = $2';
         const values = [id, pw];
 
-        const data = await pool.query(selectSql, values);
+        const data = await queryConnect(selectSql, values);
         const rows = data.rows;
 
         if (rows.length > 0) {
@@ -48,13 +46,12 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
         result.message = '로그인 오류 발생';
         result.error = error;
     } finally {
-        res.send(result);
-        pool.end()
+        await res.send(result);
     }
 });
 
 // 로그아웃 API
-router.post('/logout', loginCheck, (req, res, next) => {
+router.post('/logout', loginCheck, async (req, res, next) => {
     const result = {
         success: false,
         message: ''
@@ -82,12 +79,15 @@ router.post('/logout', loginCheck, (req, res, next) => {
     } catch (error) {
         console.error('로그아웃 오류: ', error); // 에러 출력
         next(error);
+    }finally {
+        if (!pool.ended) {
+            await pool.end();
+        }
+        console.log("종료됨")
     }
 });
 
-
-
-
+//id 찾기
 router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
     const { name, email } = req.body;
 
@@ -97,20 +97,11 @@ router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
         data: null
     };
 
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432",
-    });
-
     try {
         // 아이디 찾기 쿼리
-        await client.connect()
         const selectSql = "SELECT id FROM account WHERE name = $1 AND email = $2";
         const selectValues = [name, email];
-        const selectData = await client.query(selectSql, selectValues);
+        const selectData = await queryConnect(selectSql, selectValues);
         const selectRow = selectData.rows;
 
         if (selectRow.length === 0) {
@@ -125,9 +116,8 @@ router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
     } catch (error) {
         result.message = error.message;
     } finally { 
-        if (client) await client.end();
-        console.log("종료됨")
         await res.send(result);
+
     }
 });
 
@@ -144,20 +134,13 @@ router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res
         "message" : "",
         "data" : null 
     }
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432",
-    });
 
     try{
         // 아이디 찾기 쿼리
-        await client.connect()
         const selectSql = "SELECT pw FROM account WHERE name = $1 AND email = $2 AND id = $3";
         const values = [name, email, id]
-        const data = await client.query(selectSql,values)
+        const data = await queryConnect(selectSql, values);
+
         const row= data.rows
 
         if (row.length === 0) {
@@ -176,8 +159,6 @@ router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res
     } catch (error) {
         result.message = error.message;
     } finally { 
-        if (client) await client.end();
-        console.log("종료됨")
         await res.send(result);
     }
 });
@@ -195,14 +176,6 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
         message: '',
         data: null,
     };
-    
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432",
-    });
 
     try {
         // if (!validator.pwValidator(confirmPw)) {
@@ -220,10 +193,10 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
         }
 
         // 중복 확인
-        await client.connect();
-        const checkDuplicate = "SELECT * FROM account WHERE id = $1 OR email = $2";
+        const checkDuplicateSql = "SELECT * FROM account WHERE id = $1 OR email = $2";
         const checkDuplicateValues = [id, email];
-        const checkDuplicateData = await client.query(checkDuplicate, checkDuplicateValues);
+        const checkDuplicateData = await queryConnect(checkDuplicateSql, checkDuplicateValues);
+        
         const checkDuplicateRow = checkDuplicateData.rows;
 
         if (checkDuplicateRow.length > 0) {
@@ -234,8 +207,8 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
             const insertSql =
                 "INSERT INTO account (name, id, pw, email, birth, tel, address, gender) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)";
             const insertValues = [name, id, pw, email, birth, tel, address, gender];
+            const data = await queryConnect(insertSql, insertValues);
 
-            const data = await client.query(insertSql, insertValues);
             console.log(data.rows)
             const row = data.rows
             if(row.length>0){
@@ -254,8 +227,6 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
             result.message=e.message
             console.log(e)
         } finally{
-            if(client) client.end() //필수
-            //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
             res.send(result) 
         }
         
@@ -272,19 +243,12 @@ router.get("/my", loginCheck, async (req, res, next) => {
         data: null,
     };
 
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432",
-    });
-
     try {
-        await client.connect()
         const selectSql = "SELECT id, pw, email, name, address, birth, tel, gender FROM account WHERE idx =$1";
         const values=[userIdx]
-        const data = await client.query(selectSql, values)
+        const data = await queryConnect(selectSql, values);
+
+        console.log("postgresql 연결 완료")
         const row=data. rows
 
         if(row.length>0){
@@ -296,23 +260,10 @@ router.get("/my", loginCheck, async (req, res, next) => {
             result.success=true
             result.message = "해당 계정 없음"
         }
-        // await connection.query(selectSql, [req.session.user.idx], (err, rows) => {
-        //     if (err) {
-        //         console.error('정보 불러오기 오류: ', err);
-        //         return next({
-        //             message : "정보 불러오기 실패",
-        //             status : 500
-        //         })
-
-        //     }
-           
-        // });
 
     } catch (error) {
         result.message=error.message
     } finally{
-        if(client) client.end() //필수
-        //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
         res.send(result) 
     }
     
@@ -329,13 +280,6 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
         message: '',
         data: null,
     };
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432",
-    });
     try{
         
         // if(!validator.pwValidator(confirmPw)) {
@@ -353,10 +297,10 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
             })  
         }
         console.log(pw, tel, gender, address, birth, userIdx)
-        await client.connect()
         const updateSql = "UPDATE account SET pw = $1, tel = $2, gender = $3, address = $4, birth = $5 WHERE idx = $6";
         const values=[pw, tel, gender, address, birth, userIdx]
-        const data = await client.query(updateSql,values)
+        const data = await queryConnect(updateSql, values);
+
         const row = data.rowCount
 
         if(row.length == 0){
@@ -373,7 +317,6 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
     catch(error){
         result.message=error.message
     } finally{
-        if(client) await client.end() //필수
         res.send(result) 
     }
     
@@ -386,16 +329,10 @@ router.delete("/my", loginCheck, async (req, res, next) => {
         message: '',
         data: null,
     };
-    const client = new Client({
-        "user": "ubuntu",
-        "password": "1234",
-        "host": "localhost",
-        "database": "week6",
-        "port": "5432"
-    });
 
     try {
-        // 세션 정보 삭제
+        // 세션 정보 삭제 => eq.session.destroy 함수는 콜백 기반의 함수,직접 await를 사용할 수 없음
+        // 그러나 Promise를 반환하도록 감싸주면 await를 사용 가능
         await new Promise((resolve, reject) => {
             req.session.destroy((err) => {
                 if (err) {
@@ -411,9 +348,9 @@ router.delete("/my", loginCheck, async (req, res, next) => {
         });
 
         // 회원 정보 삭제
-        await client.connect();
         const deleteSql = "DELETE FROM account WHERE idx = $1";
-        const data = await client.query(deleteSql, [userIdx]);
+        const data = await queryConnect(deleteSql, [userIdx]);
+
         const rowCount = data.rowCount;
 
         if (rowCount > 0) {
@@ -430,7 +367,10 @@ router.delete("/my", loginCheck, async (req, res, next) => {
         result.message = error.message;
         res.status(error.status || 500).send(result);
     } finally {
-        if (client) client.end();
+        if (!pool.ended) {
+            await pool.end();
+        }
+        console.log("종료됨")
     }
 });
 

@@ -1,18 +1,30 @@
-const postgresql = require("../config/postgresql")
 
-const queryConnect = async (sql, params) => {
-    let client
+
+// async function queryConnect(pool, sql, values) {
+//     try {
+//         const data = await pool.query(sql, values);
+//         console.log('SQL 쿼리 수행 성공');
+//         return data;
+//     } catch (error) {
+//         console.error('SQL 쿼리 수행 오류:', error);
+//         throw new Error("SQL 쿼리 수행 실패: "+error);
+//     }
+// }
+
+// module.exports = queryConnect
+
+const pool = require('../config/postgresql');
+
+async function queryConnect(sql, values) {
     try {
-        const pool = await postgresql()
-        client = await pool.connect()
-        const result = await client.query(sql, params)
-        return result.rows
-    } finally {
-        if (client) {
-            client.release()
-        }
+        const data = await pool.query(sql, values);
+        console.log('SQL 쿼리 수행 성공');
+        return data;
+    } catch (error) {
+        console.error('SQL 쿼리 수행 오류:', error);
+        throw new Error("SQL 쿼리 수행 실패: " + error);
     }
 }
 
-module.exports = queryConnect
+module.exports = queryConnect;
 
