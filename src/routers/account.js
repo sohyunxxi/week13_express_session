@@ -4,16 +4,6 @@ const loginCheck = require('../middleware/loginCheck');
 const pool = require('../config/postgresql')
 const queryConnect = require('../modules/queryConnect');
 
-// 회원정보 불러오기
-// 회원정보 수정
-// 회원 탈퇴
-// 로그인
-// 로그아웃
-// 아이디 찾기
-// 비밀번호 찾기
-
-// 제대로 된 입력을 받지 않고 아예 생뚱맞은 걸 입력한 경우 예외처리
-
 const { idValidator, pwValidator, nameValidator, emailValidator, genderValidator, birthValidator, addressValidator, telValidator  } = require('../modules/accountValidator');
 
 router.post('/login', idValidator, pwValidator, async (req, res, next) => {
