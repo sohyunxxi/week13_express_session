@@ -1,8 +1,7 @@
 const validator = require('../modules/postValidator');
 const router = require("express").Router();
-const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
-const { Client } = require("pg")
+const pool = require('../config/postgresql')
 const { titleValidator, contentValidator }  = require('../modules/postValidator');
 // 게시물 불러오기
 // 게시물 등록하기
@@ -21,18 +20,7 @@ router.get("/", loginCheck, async (req, res, next) => {
         }
     };
 
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432"
-    });
-
     try {
-        // 클라이언트 연결
-        await client.connect();
-
         // 게시물 및 사용자 정보 조회 쿼리
         const selectSql = `
             SELECT post.*, account.id AS account_id
@@ -42,7 +30,7 @@ router.get("/", loginCheck, async (req, res, next) => {
         `;
 
         // 쿼리 실행
-        const { rows } = await client.query(selectSql);
+        const { rows } = await pool.query(selectSql);
 
         // 결과 처리
         for (let i = 0; i < rows.length; i++) {
@@ -71,7 +59,7 @@ router.get("/", loginCheck, async (req, res, next) => {
         next(error);
     } finally {
         // 클라이언트 연결 해제
-        if (client) await client.end();
+      
     }
 });
 
@@ -86,16 +74,7 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
         message: "",
         data: null
     };
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432"
-    });
-
     try {
-        await client.connect();
         const selectSql = `
             SELECT post.*, account.id AS account_id
             FROM post
@@ -103,7 +82,7 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
             WHERE post.idx = $1;
         `;
         const values = [postIdx];
-        const data = await client.query(selectSql, values);
+        const data = await pool.query(selectSql, values);
         const row = data.rows;
 
         if (row.length > 0) {
@@ -126,8 +105,6 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
         console.error('게시물 가져오기 오류 발생: ', error.message);
         result.message = error.message;
     } finally {
-        if (client) await client.end(); // 필수
-        // 이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
         res.send(result);
     }
 });
@@ -144,19 +121,10 @@ router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, 
         message: "",
         data: null
     };
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432"
-    });
-
     try {
-        await client.connect();
         const insertSql = "INSERT INTO post (title, content, account_idx) VALUES ($1, $2, $3)";
         const values = [title, content, userIdx];
-        const data = await client.query(insertSql, values);
+        const data = await pool.query(insertSql, values);
 
         if (data.rowCount > 0) {
             result.success = true;
@@ -168,8 +136,6 @@ router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, 
     } catch (e) {
         result.message = e.message;
     } finally {
-        if (client) await client.end(); // 필수
-        // 이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
         res.send(result);
     }
 });
@@ -188,19 +154,10 @@ router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req
         message: "",
         data: null
     };
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432"
-    });
-
     try {
-        await client.connect();
         const updateSql = "UPDATE post SET title = $1, content = $2 WHERE idx = $3 AND account_idx = $4";
         const values = [title, content, postIdx, userIdx];
-        const data = await client.query(updateSql, values);
+        const data = await pool.query(updateSql, values);
         const rowCount = data.rowCount; // 업데이트된 행의 수를 가져옴
 
         // DB 통신 결과 처리
@@ -215,8 +172,6 @@ router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req
     } catch (e) {
         result.message = e.message;
     } finally {
-        if (client) await client.end(); // 필수
-        // 이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
         res.send(result);
     }
 });
@@ -232,22 +187,11 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
         "success": false,
         "message": ""
     };
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432"
-    });
-
     try {
-        // 클라이언트 연결
-        await client.connect();
-
         // 게시물 삭제 쿼리
         const deleteSql = "DELETE FROM post WHERE idx = $1 AND account_idx = $2";
         const values = [postIdx, userIdx];
-        const data = await client.query(deleteSql, values);
+        const data = await pool.query(deleteSql, values);
         const rowCount = data.rowCount; // 삭제된 행의 수를 가져옴
 
         // DB 통신 결과 처리
@@ -262,8 +206,6 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
     } catch (e) {
         result.message = e.message;
     } finally {
-        if (client) await client.end(); // 필수
-        // 이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
         res.send(result);
     }
 });

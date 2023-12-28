@@ -36,3 +36,5 @@ connection.connect((err) => {
     }
     console.log('MySQL에 연결되었습니다. 연결 ID: ' + connection.threadId);
   });
+
+  

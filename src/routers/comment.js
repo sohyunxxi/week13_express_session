@@ -1,9 +1,9 @@
 const validator = require('../modules/commentValidator');
 const router = require("express").Router();
-const connection = require('../config/mysql');
 const loginCheck = require('../middleware/loginCheck');
 const contentValidator = require('../modules/commentValidator');
-const { Client } = require("pg")
+const pool = require('../config/postgresql')
+
 
 
 // 댓글 불러오기
@@ -14,6 +14,8 @@ const { Client } = require("pg")
 //------댓글 관련 API-------
 
 //댓글 불러오기 API
+//postidx 비어있는지 체크
+
 router.get("/", loginCheck, async (req, res, next) => {
     const {postIdx} = req.body
     const result = {
@@ -23,16 +25,8 @@ router.get("/", loginCheck, async (req, res, next) => {
             comments: [],
         },
     };
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432",
-    });
 
     try {
-        await client.connect();
         const selectCommentSql = `
             SELECT comment.*, account.id AS account_id
             FROM comment
@@ -41,7 +35,7 @@ router.get("/", loginCheck, async (req, res, next) => {
             ORDER BY comment.created_at DESC
         `;
         const values = [postIdx];
-        const data = await client.query(selectCommentSql, values);
+        const data = await pool.query(selectCommentSql, values);
         const rows = data.rows;
 
         // 배열에 각 댓글 정보 추가
@@ -67,13 +61,13 @@ router.get("/", loginCheck, async (req, res, next) => {
         result.message = e.message;
         console.log(e)
     } finally {
-        if (client) client.end();
+        
     }
 });
 
 
 
-
+//postidx 비어있는지 체크
 //댓글 등록 API
 router.post("/", loginCheck, contentValidator, async(req,res,next) => { // 헷갈릴수있어서 body로 받도록 수정
     const {postIdx,content} = req.body
@@ -83,18 +77,11 @@ router.post("/", loginCheck, contentValidator, async(req,res,next) => { // 헷�
         "message" : "",
         "data" : null 
     }
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432"
-    });
+
     try{
-        await client.connect()
         const insertSql = "INSERT INTO comment (content, account_idx, post_idx) VALUES ($1, $2, $3)";
         const values = [content, userIdx, postIdx];
-       const data = await client.query(insertSql, values) // query는 비동기 함수니까 await
+       const data = await pool.query(insertSql, values) // query는 비동기 함수니까 await
        const row = data.rowCount
        
        if(row>0){
@@ -110,8 +97,6 @@ router.post("/", loginCheck, contentValidator, async(req,res,next) => { // 헷�
     } catch(e){ // 쓰레기통 구현하면 이 내용들 줄일  수 있음.
         result.message=e.message
     } finally{
-        if(client) client.end() //필수
-        //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
         res.send(result) 
     }
     
@@ -129,18 +114,11 @@ router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {
         "message" : "",
         "data" : null 
     }
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432"
-    });
+
     try{
-        await client.connect()
         const updateSql = "UPDATE comment SET content = $1 WHERE idx = $2 AND account_idx = $3";
         const values = [content, commentIdx,userIdx]
-        const data = await client.query(updateSql, values) // query는 비동기 함수니까 await
+        const data = await pool.query(updateSql, values) // query는 비동기 함수니까 await
        const row = data.rowCount //data는 별에 별 내용이 다 들어가 있어서 테이블은 rows만.
 
 
@@ -159,8 +137,6 @@ router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {
     } catch(e){ // 쓰레기통 구현하면 이 내용들 줄일  수 있음.
         result.message=e.message
     } finally{
-        if(client) client.end() //필수
-        //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
         res.send(result) 
     }
     
@@ -178,20 +154,11 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
         "message" : "",
         "data" : null 
     }
-    const client = new Client({
-        user: "ubuntu",
-        password: "1234",
-        host: "localhost",
-        database: "week6",
-        port: "5432"
-    });
 
     try{
-
-        await client.connect()
         const deleteSql = "DELETE FROM comment WHERE idx = $1 AND account_idx=$2";
         const values = [commentIdx,userIdx]
-        const data = await client.query(deleteSql, values) // query는 비동기 함수니까 await
+        const data = await pool.query(deleteSql, values) // query는 비동기 함수니까 await
         const row = data.rowCount //data는 별에 별 내용이 다 들어가 있어서 테이블은 rows만.
  
  
@@ -211,8 +178,6 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
      } catch(e){ // 쓰레기통 구현하면 이 내용들 줄일  수 있음.
          result.message=e.message
      } finally{
-         if(client) client.end() //필수
-         //이거 안하면 max 연결횟수 초과해서 db 연결이 안 될 수 있음. 무조건 해줘야 함.
          res.send(result) 
      }
      
