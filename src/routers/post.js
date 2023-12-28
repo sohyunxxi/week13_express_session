@@ -3,16 +3,9 @@ const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
 const pool = require('../config/postgresql')
 const { titleValidator, contentValidator }  = require('../modules/postValidator');
-// 게시물 불러오기
-// 게시물 등록하기
-// 게시물 수정하기
-// 게시물 삭제하기
-
-//------게시물 관련 API-------
-
 //게시물 목록 불러오기
 router.get("/", loginCheck, async (req, res, next) => {
-    const response = {
+    const result = {
         success: false,
         message: "",
         data: {
@@ -21,18 +14,15 @@ router.get("/", loginCheck, async (req, res, next) => {
     };
 
     try {
-        // 게시물 및 사용자 정보 조회 쿼리
-        const selectSql = `
-            SELECT post.*, account.id AS account_id
-            FROM post
-            INNER JOIN account ON post.account_idx = account.idx
-            ORDER BY post.created_at DESC;
-        `;
+        const query = {
+            text: `SELECT post.*, account.id AS account_id
+                    FROM post
+                    INNER JOIN account ON post.account_idx = account.idx
+                    ORDER BY post.created_at DESC`,
+        };
 
-        // 쿼리 실행
-        const { rows } = await pool.query(selectSql);
+        const { rows } = await queryConnect(query);
 
-        // 결과 처리
         for (let i = 0; i < rows.length; i++) {
             const post = {
                 postIdx: rows[i].idx,
@@ -42,28 +32,18 @@ router.get("/", loginCheck, async (req, res, next) => {
                 postingTitle: rows[i].title,
                 postingDate: rows[i].created_at  // created_at으로 변경
             };
-
-            // 배열에 게시물 추가
-            response.data.posts.push(post);
+            result.data.posts.push(post);
         }
-
-        // 성공 응답 설정
-        response.success = true;
-        response.message = "게시물 불러오기 성공";
-
-        // 클라이언트에 응답 전송
-        res.status(200).send(response);
+        result.success = true;
+        result.message = "게시물 불러오기 성공";
+        res.status(200).send(result);
     } catch (error) {
         console.error('게시물 불러오기 오류: ', error);
-        response.message = "게시물 불러오기 실패";
-        next(error);
-    } finally {
-        // 클라이언트 연결 해제
-      
+        result.message = "게시물 불러오기 실패";
+        result.error = error;
+        return next(error);
     }
 });
-
-
 
 //게시물 불러오기
 router.get("/:postIdx", loginCheck, async (req, res, next) => {
@@ -75,41 +55,36 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
         data: null
     };
     try {
-        const selectSql = `
-            SELECT post.*, account.id AS account_id
-            FROM post
-            INNER JOIN account ON post.account_idx = account.idx
-            WHERE post.idx = $1;
-        `;
-        const values = [postIdx];
-        const data = await pool.query(selectSql, values);
-        const row = data.rows;
-
-        if (row.length > 0) {
+        const query = {
+            text: `SELECT post.*, account.id AS account_id
+                    FROM post
+                    JOIN account ON post.account_idx = account.idx
+                    WHERE post.idx = $1;`,
+            values: [postIdx],
+        };
+        const { rows } = await queryConnect(query);
+        if (rows.length > 0) {
             const post = {
-                postIdx: row[0].idx,
-                postWriterIdx: row[0].account_idx,
-                postingWriterId: row[0].account_id,
-                postingContent: row[0].content,
-                postingTitle: row[0].title,
-                postingDate: row[0].created_at
+                postIdx: rows[0].idx,
+                postWriterIdx: rows[0].account_idx,
+                postingWriterId: rows[0].account_id,
+                postingContent: rows[0].content,
+                postingTitle: rows[0].title,
+                postingDate: rows[0].created_at
             };
             result.success = true;
             result.data = post;
         } else {
             result.success = false;
             result.message = "게시물 불러오기 실패";
-            result.data = row;
+            result.data = rows;
         }
+        res.send(result);
     } catch (error) {
         console.error('게시물 가져오기 오류 발생: ', error.message);
         result.message = error.message;
-    } finally {
-        res.send(result);
     }
 });
-
-
 
 //게시물 쓰기
 router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, next) => {

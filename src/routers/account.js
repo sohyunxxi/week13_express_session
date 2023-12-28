@@ -99,7 +99,7 @@ router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
             result.message = "일치하는 정보 없음";
         }
 
-        res.send(result); // 이 위치에서 응답을 보내도록 변경
+       // 이 위치에서 응답을 보내도록 변경
     } catch (error) {
         result.error = error;
         return next(error);
@@ -163,8 +163,8 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
             text: 'SELECT * FROM account WHERE id = $1 OR email = $2',
             values: [id, email],
         };
-
         const { rows } = await queryConnect(selectQuery);
+
 
         if (rows.length > 0) {
             result.success = false;
@@ -177,6 +177,7 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
             const { rows } = await queryConnect(insertQuery);
 
             if(rows.length>0){
+
                 result.success=true
                 result.data= rows
             }
@@ -193,6 +194,7 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
         res.send(result) 
     }  
 })
+
     
 
 
@@ -211,6 +213,7 @@ router.get("/my", loginCheck, async (req, res, next) => {
             values: [userIdx],
         };
         const { rows } = await queryConnect(query);
+
 
         if(rows.length>0){
             result.success = true;
@@ -240,7 +243,6 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
         message: '',
         data: null,
     };
-
     try{ 
         const query = {
             text: 'UPDATE account SET pw = $1, tel = $2, gender = $3, address = $4, birth = $5 WHERE idx = $6',
@@ -250,6 +252,7 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
         const { rowCount } = await queryConnect(query);
 
         if(rowCount.length == 0){
+
             result.message = "회원정보 수정 실패"
             console.error("회원정보 수정 실패: 데이터 없음", data);
         }
@@ -296,8 +299,8 @@ router.delete("/my", loginCheck, async (req, res, next) => {
             text: 'DELETE FROM account WHERE idx = $1',
             values: [userIdx],
         };
-
         const { rowCount } = await queryConnect(query);
+
 
         if (rowCount > 0) {
             result.success = true;
