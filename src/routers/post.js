@@ -2,6 +2,8 @@ const validator = require('../modules/postValidator');
 const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
 const pool = require('../config/postgresql')
+const queryConnect = require('../modules/queryConnect');
+
 const { titleValidator, contentValidator }  = require('../modules/postValidator');
 //게시물 목록 불러오기
 router.get("/", loginCheck, async (req, res, next) => {
@@ -97,13 +99,15 @@ router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, 
         data: null
     };
     try {
-        const insertSql = "INSERT INTO post (title, content, account_idx) VALUES ($1, $2, $3)";
-        const values = [title, content, userIdx];
-        const data = await pool.query(insertSql, values);
+        const query = {
+            text: 'INSERT INTO post (title, content, account_idx) VALUES ($1, $2, $3)',
+            values: [title, content, userIdx],
+        };
 
-        if (data.rowCount > 0) {
+        const { rowCount } = await queryConnect(query);
+        if (rowCount > 0) {
             result.success = true;
-            result.data = data.rows;
+            result.data = rowCount;
         } else {
             result.success = false;
             result.message = "게시물 등록 오류";
@@ -130,12 +134,13 @@ router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req
         data: null
     };
     try {
-        const updateSql = "UPDATE post SET title = $1, content = $2 WHERE idx = $3 AND account_idx = $4";
-        const values = [title, content, postIdx, userIdx];
-        const data = await pool.query(updateSql, values);
-        const rowCount = data.rowCount; // 업데이트된 행의 수를 가져옴
+        const query = {
+            text: 'UPDATE post SET title = $1, content = $2 WHERE idx = $3 AND account_idx = $4',
+            values: [title, content, postIdx, userIdx],
+        };
 
-        // DB 통신 결과 처리
+        const { rowCount } = await queryConnect(query);
+
         if (rowCount > 0) {
             result.success = true;
             result.message = "업데이트 성공";
@@ -163,13 +168,12 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
         "message": ""
     };
     try {
-        // 게시물 삭제 쿼리
-        const deleteSql = "DELETE FROM post WHERE idx = $1 AND account_idx = $2";
-        const values = [postIdx, userIdx];
-        const data = await pool.query(deleteSql, values);
-        const rowCount = data.rowCount; // 삭제된 행의 수를 가져옴
+        const query = {
+            text: 'DELETE FROM post WHERE idx = $1 AND account_idx = $2',
+            values: [postIdx, userIdx],
+        };
 
-        // DB 통신 결과 처리
+        const { rowCount } = await queryConnect(query);
         if (rowCount > 0) {
             result.success = true;
             result.message = "게시물 삭제 성공";

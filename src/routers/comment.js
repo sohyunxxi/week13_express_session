@@ -3,6 +3,7 @@ const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
 const contentValidator = require('../modules/commentValidator');
 const pool = require('../config/postgresql')
+const queryConnect = require('../modules/queryConnect');
 
 
 
