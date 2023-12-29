@@ -48,12 +48,11 @@ router.get("/", loginCheck, async (req, res, next) => {
 
         result.success = true;
         result.message = "댓글 가져오기 성공";
+        res.send(result);
     } catch (error) {
         result.message = error.message;
         console.error(error);
         return next(error);
-    } finally {
-        res.send(result);
     }
 });
 
@@ -91,14 +90,12 @@ router.post("/", loginCheck, contentValidator, async(req,res,next) => {
             result.message = "댓글 등록 실패"
             console.log(data)
         }
+        res.send(result) 
     } catch(e){ 
         result.message=e.message
         return next(e);
-    } finally{
-        res.send(result) 
-    }
-    
-})
+    }    
+});
 
 // 댓글 수정 API
 router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {  
@@ -128,15 +125,13 @@ router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {
             result.success=false
             result.message = "댓글 수정 실패"
         }
-        
+        res.send(result) 
     } catch(e){
         result.message=e.message
         return next(e);
-    } finally{
-        res.send(result) 
     }
     
-})
+});
 
 // 댓글 삭제 API
 router.delete("/:idx", loginCheck, async (req,res,next) => {
@@ -164,14 +159,12 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
              result.success=true
              result.message = "삭제 권한 없거나 게시물 존재하지 않음"
          }
-     
+         res.send(result)
      } catch(e) {
         result.message=e.message        
         return next(e);
-     } finally {
-         res.send(result) 
      }
- })
+});
 
 router.use((err, req, res, next) => {
     res.status(err.status || 500).send({

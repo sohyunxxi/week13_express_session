@@ -31,15 +31,13 @@ router.get("/", loginCheck, async (req, res, next) => {
             postingTitle: row.title,
             postingDate: row.created_at,
         }));
-        
         result.success = true;
-        result.message = "게시물 불러오기 성공";
+        result.message = "게시물 불러오기 성공";        
+        res.send(result);
     } catch (error) {
         console.error('게시물 불러오기 오류: ', error);
         result.message = "게시물 불러오기 실패";
         return next(error);
-    } finally {
-        res.send(result);
     }
 });
 
@@ -77,12 +75,11 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
             result.message = "게시물 불러오기 실패";
             result.data = rows;
         }
+        res.send(result);
     } catch (error) {
         console.error('게시물 가져오기 오류 발생: ', error.message);
         result.message = error.message;
         return next(error);
-    } finally{
-        res.send(result);
     }
 });
 
@@ -110,11 +107,10 @@ router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, 
             result.success = false;
             result.message = "게시물 등록 오류";
         }
+        res.send(result);
     } catch (e) {
         result.message = e.message;
         return next(e);
-    } finally {
-        res.send(result);
     }
 });
 
@@ -145,12 +141,10 @@ router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req
             result.success = false;
             result.message = "해당 게시물이나 권한이 없습니다.";
         }
-
+        res.send(result);
     } catch (e) {
         result.message = e.message;
         return next(e);
-    } finally {
-        res.send(result);
     }
 });
 
@@ -177,12 +171,10 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
             result.success = false;
             result.message = "게시물 삭제 실패. 해당 게시물이나 권한이 없습니다.";
         }
-
+        res.send(result);
     } catch (e) {
         result.message = e.message;        
         return next(e);
-    } finally {
-        res.send(result);
     }
 });
 

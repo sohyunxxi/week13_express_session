@@ -36,13 +36,12 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
         } else {
             result.message = '해당하는 계정이 없습니다.';
         }
+        res.send(result);
     } catch (error) {
         console.error('로그인 오류: ', error);
         result.message = '로그인 오류 발생';
         result.error = error;
         return next(error);
-    } finally {
-        res.send(result);
     }
 });
 
@@ -93,13 +92,11 @@ router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
             result.success = false;
             result.message = "일치하는 정보 없음";
         }
-
+        res.send(result);
        // 이 위치에서 응답을 보내도록 변경
     } catch (error) {
         result.error = error;
         return next(error);
-    } finally { 
-        res.send(result);
     }
 });
 
@@ -120,7 +117,6 @@ router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res
         };
         const { rows } = await queryConnect(query);
 
-
         if (rows.length === 0) {
             return next({
                 message : "일치하는 정보 없음",
@@ -133,11 +129,10 @@ router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res
             result.success = true;
             result.message = `비밀번호 찾기 성공, 비밀번호는 ${foundPw} 입니다.`;
             result.data = { pw: foundPw };
-        }
+        }       
+        res.send(result);
     } catch (error) {
         result.message = error.message;
-    } finally { 
-        res.send(result);
     }
 });
 
@@ -177,15 +172,14 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
                 result.success=true
                 result.message = "회원 가입 성공"
             }
-        } 
+        }
+        res.send(result)  
     }
     catch(e){
         result.message=e.message
         console.log(e)
-    } finally{
-        res.send(result) 
-    }  
-})
+    }
+});
 
 // 회원정보 보기 API
 router.get("/my", loginCheck, async (req, res, next) => {
@@ -212,12 +206,10 @@ router.get("/my", loginCheck, async (req, res, next) => {
             result.success=true
             result.message = "해당 계정 없음"
         }
-
+        res.send(result) 
     } catch (error) {
         result.message=error.message
-    } finally{
-        res.send(result) 
-    }  
+    }
 });
 
 // 회원정보 수정 API
@@ -246,14 +238,12 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
             result.data = [pw, tel, gender, address, birth]
             result.message = "회원정보 수정 성공"
         }
+        res.send(result)
     }
     catch(error){
         result.message=error.message
-    } finally{
-        res.send(result) 
-    }
-    
-})
+    } 
+});
 
 // 회원정보 삭제 API
 router.delete("/my", loginCheck, async (req, res, next) => {
@@ -289,14 +279,12 @@ router.delete("/my", loginCheck, async (req, res, next) => {
             result.success = false;
             result.message = "회원정보 삭제 실패: 해당하는 사용자 없음";
         }
+        res.send(result);
     } catch (error) {
         result.error = error;
         return next(error);
-    } finally {
-        res.send(result);
     }
 });
-
 
 router.use((err, req, res, next) => {
     res.status(err.status || 500).send({

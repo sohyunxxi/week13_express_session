@@ -1,7 +1,6 @@
 //==========package============//예외처리를 모듈화해서 밖으로 빼기 (유효성 모듈)
 const express=require("express")
 const session = require("express-session")
-//const mysql = require("mysql");
 
 //======Init========
 const app = express()
