@@ -1,11 +1,10 @@
-const validator = require('../modules/postValidator');
 const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
-const pool = require('../config/postgresql')
 const queryConnect = require('../modules/queryConnect');
+const { titleValidator, 
+        contentValidator }  = require('../modules/postValidator');
 
-const { titleValidator, contentValidator }  = require('../modules/postValidator');
-//게시물 목록 불러오기
+// 게시물 목록 불러오기 API
 router.get("/", loginCheck, async (req, res, next) => {
     const result = {
         success: false,
@@ -22,32 +21,29 @@ router.get("/", loginCheck, async (req, res, next) => {
                     INNER JOIN account ON post.account_idx = account.idx
                     ORDER BY post.created_at DESC`,
         };
-
         const { rows } = await queryConnect(query);
 
-        for (let i = 0; i < rows.length; i++) {
-            const post = {
-                postIdx: rows[i].idx,
-                postWriterIdx: rows[i].account_idx,
-                postingWriterId: rows[i].account_id, // 수정: user_id -> account_id
-                postingContent: rows[i].content,
-                postingTitle: rows[i].title,
-                postingDate: rows[i].created_at  // created_at으로 변경
-            };
-            result.data.posts.push(post);
-        }
+        result.data.posts = rows.map(row => ({
+            postIdx: row.idx,
+            postWriterIdx: row.account_idx,
+            postingWriterId: row.account_id,
+            postingContent: row.content,
+            postingTitle: row.title,
+            postingDate: row.created_at,
+        }));
+        
         result.success = true;
         result.message = "게시물 불러오기 성공";
-        res.status(200).send(result);
     } catch (error) {
         console.error('게시물 불러오기 오류: ', error);
         result.message = "게시물 불러오기 실패";
-        result.error = error;
         return next(error);
+    } finally {
+        res.send(result);
     }
 });
 
-//게시물 불러오기
+// 게시물 불러오기 API
 router.get("/:postIdx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.postIdx;
 
@@ -81,14 +77,16 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
             result.message = "게시물 불러오기 실패";
             result.data = rows;
         }
-        res.send(result);
     } catch (error) {
         console.error('게시물 가져오기 오류 발생: ', error.message);
         result.message = error.message;
+        return next(error);
+    } finally{
+        res.send(result);
     }
 });
 
-//게시물 쓰기
+// 게시물 쓰기 API
 router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, next) => {
     const userIdx = req.session.user.idx;
     const { content, title } = req.body;
@@ -114,14 +112,13 @@ router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, 
         }
     } catch (e) {
         result.message = e.message;
+        return next(e);
     } finally {
         res.send(result);
     }
 });
 
-
-
-//게시물 수정하기
+// 게시물 수정하기 API
 router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req, res, next) => {
     const postIdx = req.params.postIdx;
     const userIdx = req.session.user.idx;
@@ -151,14 +148,13 @@ router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req
 
     } catch (e) {
         result.message = e.message;
+        return next(e);
     } finally {
         res.send(result);
     }
 });
 
-
-
-//게시물 삭제하기
+// 게시물 삭제하기 API
 router.delete("/:idx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.idx;
     const userIdx = req.session.user.idx;
@@ -183,14 +179,13 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
         }
 
     } catch (e) {
-        result.message = e.message;
+        result.message = e.message;        
+        return next(e);
     } finally {
         res.send(result);
     }
 });
 
-
-// Error handling middleware
 router.use((err, req, res, next) => {
     res.status(400).send({ success: false, message: err.message });
 });

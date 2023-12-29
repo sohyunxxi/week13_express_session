@@ -1,11 +1,17 @@
-const validator = require('../modules/accountValidator');
 const router = require("express").Router()
 const loginCheck = require('../middleware/loginCheck');
-const pool = require('../config/postgresql')
 const queryConnect = require('../modules/queryConnect');
 
-const { idValidator, pwValidator, nameValidator, emailValidator, genderValidator, birthValidator, addressValidator, telValidator  } = require('../modules/accountValidator');
+const { idValidator, 
+        pwValidator,    
+        nameValidator, 
+        emailValidator, 
+        genderValidator, 
+        birthValidator, 
+        addressValidator, 
+        telValidator  } = require('../modules/accountValidator');
 
+// 로그인 API
 router.post('/login', idValidator, pwValidator, async (req, res, next) => {
     const { id, pw } = req.body;
     const result = {
@@ -15,7 +21,6 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
     };
 
     try {
-        // DB 통신
         const query = {
             text: 'SELECT * FROM account WHERE id = $1 AND pw = $2',
             values: [id, pw],
@@ -61,7 +66,7 @@ router.post('/logout', loginCheck, async (req, res, next) => {
         });
 });
 
-//id 찾기
+// id 찾기 API
 router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
     const { name, email } = req.body;
 
@@ -83,7 +88,7 @@ router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
             const foundId = rows[0].id;
             result.success = true;
             result.message = `아이디 찾기 성공, 아이디는 ${foundId} 입니다.`;
-            result.data = { id: foundId, name, email };
+            result.data = { id: foundId };
         } else {
             result.success = false;
             result.message = "일치하는 정보 없음";
@@ -93,13 +98,12 @@ router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
     } catch (error) {
         result.error = error;
         return next(error);
+    } finally { 
+        res.send(result);
     }
 });
 
-
-
-
-//pw 찾기
+// pw 찾기 API
 router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res,next) => {
     const { name, email, id } = req.body
 
@@ -128,7 +132,7 @@ router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res
             const foundPw = rows[0].pw;
             result.success = true;
             result.message = `비밀번호 찾기 성공, 비밀번호는 ${foundPw} 입니다.`;
-            result.data = { pw: foundPw, name, email, id };
+            result.data = { pw: foundPw };
         }
     } catch (error) {
         result.message = error.message;
@@ -137,8 +141,7 @@ router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res
     }
 });
 
-// 회원가입 API -> 더 나은 구조 생각해보기.
-// 주소를 입력하지 않아도 그냥 넘어가는 이유??
+// 회원가입 API
 router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwValidator, birthValidator, genderValidator, addressValidator, async (req, res, next) => {
     const { id, pw, name, email, tel, birth, address, gender } = req.body;
 
@@ -167,7 +170,6 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
             const { rows } = await queryConnect(insertQuery);
 
             if(rows.length>0){
-
                 result.success=true
                 result.data= rows
             }
@@ -185,9 +187,6 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
     }  
 })
 
-    
-
-
 // 회원정보 보기 API
 router.get("/my", loginCheck, async (req, res, next) => {
     const userIdx = req.session.user.idx
@@ -204,7 +203,6 @@ router.get("/my", loginCheck, async (req, res, next) => {
         };
         const { rows } = await queryConnect(query);
 
-
         if(rows.length>0){
             result.success = true;
             result.message = "회원정보 불러오기 성공";
@@ -219,12 +217,10 @@ router.get("/my", loginCheck, async (req, res, next) => {
         result.message=error.message
     } finally{
         res.send(result) 
-    }
-    
+    }  
 });
 
 // 회원정보 수정 API
-
 router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderValidator, addressValidator, async (req, res, next) => {
     const { pw, tel, birth, gender, address } = req.body;
     const userIdx = req.session.user.idx
@@ -242,7 +238,6 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
         const { rowCount } = await queryConnect(query);
 
         if(rowCount.length == 0){
-
             result.message = "회원정보 수정 실패"
             console.error("회원정보 수정 실패: 데이터 없음", data);
         }
@@ -251,7 +246,6 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
             result.data = [pw, tel, gender, address, birth]
             result.message = "회원정보 수정 성공"
         }
-
     }
     catch(error){
         result.message=error.message
@@ -261,6 +255,7 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
     
 })
 
+// 회원정보 삭제 API
 router.delete("/my", loginCheck, async (req, res, next) => {
     const userIdx = req.session.user.idx;
     const result = {
@@ -270,27 +265,21 @@ router.delete("/my", loginCheck, async (req, res, next) => {
     };
 
     try {
-        // 세션 정보 삭제 => eq.session.destroy 함수는 콜백 기반의 함수,직접 await를 사용할 수 없음
-        // 그러나 Promise를 반환하도록 감싸주면 await를 사용 가능
-        await new Promise((resolve, reject) => {
-            req.session.destroy((err) => {
-                if (err) {
-                    console.error('세션 삭제 오류: ', err);
-                    reject({
-                        message: "세션 삭제 실패",
-                        status: 500
-                    });
-                } else {
-                    resolve();
-                }
-            });
+        req.session.destroy((err) => {
+            if (err) {
+                return next({
+                    status : 500,
+                    err
+                })
+            }
+            result.success = true;
+            result.message = '로그아웃 성공';
         });
         const query = {
             text: 'DELETE FROM account WHERE idx = $1',
             values: [userIdx],
         };
         const { rowCount } = await queryConnect(query);
-
 
         if (rowCount > 0) {
             result.success = true;
@@ -300,16 +289,11 @@ router.delete("/my", loginCheck, async (req, res, next) => {
             result.success = false;
             result.message = "회원정보 삭제 실패: 해당하는 사용자 없음";
         }
-
-        res.status(200).send(result);
     } catch (error) {
         result.error = error;
         return next(error);
     } finally {
-        if (!pool.ended) {
-            await pool.end();
-        }
-        console.log("종료됨")
+        res.send(result);
     }
 });
 
