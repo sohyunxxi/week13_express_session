@@ -187,7 +187,10 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
 });
 
 router.use((err, req, res, next) => {
-    res.status(400).send({ success: false, message: err.message });
+    res.status(err.status || 500).send({
+        success: false,
+        message: err.message || '서버 오류',
+        data: null,
+    });
 });
-
 module.exports = router
