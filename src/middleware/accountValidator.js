@@ -1,3 +1,7 @@
+//코드 수정하기 -> 하나하나 만들지말고 공통으로
+//패턴 체크 하는걸로~~
+
+
 const idValidator = (req, res, next) => {
     const { id } = req.body;
 

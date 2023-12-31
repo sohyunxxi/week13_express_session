@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
 const queryConnect = require('../modules/queryConnect');
-const contentValidator = require('../modules/commentValidator');
+const contentValidator = require('../middleware/commentValidator');
 
 // 댓글 불러오기 API
 router.get("/", loginCheck, async (req, res, next) => {
@@ -36,7 +36,7 @@ router.get("/", loginCheck, async (req, res, next) => {
 
         const { rows } = await queryConnect(query);
 
-        result.data.comments = rows.map(row => ({
+        result.data.comments = rows.map(row => ({ //테이블 컬럼에 있는 걸로 그냥 주기..
             commentIdx: row.idx,
             commentWriterIdx: row.account_idx,
             commentWriterId: row.account_id,
@@ -166,12 +166,5 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
      }
 });
 
-router.use((err, req, res, next) => {
-    res.status(err.status || 500).send({
-        success: false,
-        message: err.message || '서버 오류',
-        data: null,
-    });
-});
 
 module.exports = router

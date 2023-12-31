@@ -9,7 +9,7 @@ const { idValidator,
         genderValidator, 
         birthValidator, 
         addressValidator, 
-        telValidator  } = require('../modules/accountValidator');
+        telValidator  } = require('../middleware/accountValidator');
 
 // 로그인 API
 router.post('/login', idValidator, pwValidator, async (req, res, next) => {
@@ -28,7 +28,7 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
 
         const { rows } = await queryConnect(query);
         
-        if (rows.length > 0) {
+        if (rows.length > 0) { // 실패일 떄를 if문으로 잡기
             result.success = true;
             result.message = '로그인 성공';
             result.data = rows[0];
@@ -284,14 +284,6 @@ router.delete("/my", loginCheck, async (req, res, next) => {
         result.error = error;
         return next(error);
     }
-});
-
-router.use((err, req, res, next) => {
-    res.status(err.status || 500).send({
-        success: false,
-        message: err.message || '서버 오류',
-        data: null,
-    });
 });
 
 module.exports = router

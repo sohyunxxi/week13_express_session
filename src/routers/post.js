@@ -2,7 +2,7 @@ const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
 const queryConnect = require('../modules/queryConnect');
 const { titleValidator, 
-        contentValidator }  = require('../modules/postValidator');
+        contentValidator }  = require('../middleware/postValidator');
 
 // 게시물 목록 불러오기 API
 router.get("/", loginCheck, async (req, res, next) => {
@@ -48,7 +48,8 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
     const result = {
         success: false,
         message: "",
-        data: null
+        data: null // editable 추가하기 -> 세션으로 비교해서 넣기? 
+        
     };
     try {
         const query = {
@@ -178,11 +179,4 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
     }
 });
 
-router.use((err, req, res, next) => {
-    res.status(err.status || 500).send({
-        success: false,
-        message: err.message || '서버 오류',
-        data: null,
-    });
-});
 module.exports = router
