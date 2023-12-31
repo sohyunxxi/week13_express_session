@@ -30,6 +30,8 @@ app.use(session(sessionObj)); //모든 url에 접근시 적용
 //     }
 //     next()
 // })
+const pageApi = require("./src/routers/page")
+app.use("/",pageApi)
 
 const accountApi = require("./src/routers/account")
 app.use("/account", accountApi)
