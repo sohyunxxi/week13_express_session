@@ -11,7 +11,6 @@ const idValidator = (req, res, next) => {
             status: 400,
         });
     }
-
     next();
 };
 
