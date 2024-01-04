@@ -1,0 +1,15 @@
+● mongod.service - MongoDB Database Server
+     Loaded: loaded (/lib/systemd/system/mongod.service; disabled; vendor preset: enabled)
+     Active: inactive (dead)
+       Docs: https://docs.mongodb.org/manual
+
+Jan 04 07:22:24 ip-172-31-34-68 systemd[1]: Started MongoDB Database Server.
+Jan 04 07:22:25 ip-172-31-34-68 mongod[1445247]: {"t":{"$date":"2024-01-04T07:22:25.061Z"},"s":"I",  "c":"CONTROL",  "id":7484500, "ctx":"-","msg":"Environment variable MONGODB_CONFIG_OVERRIDE_NOFORK == 1, overriding \"processManagement.fork\" to false"}
+Jan 04 07:28:40 ip-172-31-34-68 systemd[1]: Stopping MongoDB Database Server...
+Jan 04 07:28:40 ip-172-31-34-68 systemd[1]: mongod.service: Succeeded.
+Jan 04 07:28:40 ip-172-31-34-68 systemd[1]: Stopped MongoDB Database Server.
+Jan 04 07:28:40 ip-172-31-34-68 systemd[1]: Started MongoDB Database Server.
+Jan 04 07:28:40 ip-172-31-34-68 mongod[1445392]: {"t":{"$date":"2024-01-04T07:28:40.435Z"},"s":"I",  "c":"CONTROL",  "id":7484500, "ctx":"-","msg":"Environment variable MONGODB_CONFIG_OVERRIDE_NOFORK == 1, overriding \"processManagement.fork\" to false"}
+Jan 04 07:34:30 ip-172-31-34-68 systemd[1]: Stopping MongoDB Database Server...
+Jan 04 07:34:30 ip-172-31-34-68 systemd[1]: mongod.service: Succeeded.
+Jan 04 07:34:30 ip-172-31-34-68 systemd[1]: Stopped MongoDB Database Server.

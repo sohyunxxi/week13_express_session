@@ -1,6 +1,7 @@
 const router = require("express").Router()
 const loginCheck = require('../middleware/loginCheck');
 const queryConnect = require('../modules/queryConnect');
+const makeLog = require("../middleware/makelog");
 
 const { idValidator, 
         pwValidator,    
@@ -28,7 +29,7 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
 
         const { rows } = await queryConnect(query);
         
-        if (rows.length > 0) { // 실패일 떄를 if문으로 잡기
+        if (rows.length > 0) {
             result.success = true;
             result.message = '로그인 성공';
             result.data = rows[0];
@@ -36,6 +37,22 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
         } else {
             result.message = '해당하는 계정이 없습니다.';
         }
+
+        // 로그 데이터를 생성하여 전달
+        const logData = {
+            ip: req.ip,
+            userId: id, // 로그인 시 사용자 ID를 사용
+            apiName: '/login', // 로그인 API에 대한 정보
+            restMethod: 'POST', // POST 방식으로 로그인
+            inputData: { id }, // 로그인 시 입력된 ID 정보
+            outputData: result, // 로그인 결과
+            time: new Date(), // 현재 시간
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        makeLog(req, res, logData, next);
+
+        // 로그 생성 후 응답 전송
         res.send(result);
     } catch (error) {
         console.error('로그인 오류: ', error);
@@ -47,6 +64,7 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
 
 // 로그아웃 API
 router.post('/logout', loginCheck, async (req, res, next) => {
+    const id = req.session.user.id
     const result = {
         success: false,
         message: "로그아웃 실패",
@@ -61,6 +79,19 @@ router.post('/logout', loginCheck, async (req, res, next) => {
             }
             result.success = true;
             result.message = '로그아웃 성공';
+            const logData = {
+                ip: req.ip,
+                userId: id, // 로그아웃 시 사용자 ID를 사용
+                apiName: '/logout', // 로그아웃 API에 대한 정보
+                restMethod: 'POST', // POST 방식으로 로그아웃
+                inputData: { }, // 로그아웃
+                outputData: result, // 로그아웃 결과
+                time: new Date(), // 현재 시간
+            };
+    
+            // makeLog 함수에 로그 데이터 전달
+            makeLog(req, res, logData, next);
+    
             res.status(200).send(result);
         });
 });

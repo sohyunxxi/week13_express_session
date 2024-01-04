@@ -43,7 +43,7 @@ const commentApi = require("./src/routers/comment")
 app.use("/comment",commentApi)
 
 const historyApi = require("./src/routers/history")
-app.use("/comment",historyApi)
+app.use("/history",historyApi)
 
 //error handler 넣기
 app.use((err, req, res, next) => {
