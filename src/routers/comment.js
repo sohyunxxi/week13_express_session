@@ -1,8 +1,8 @@
 const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
 const queryConnect = require('../modules/queryConnect');
-const contentValidator = require('../middleware/commentValidator');
-const makeLog = require("../middleware/makelog");
+const makeLog = require("../modules/makelog");
+const isBlank = require("../middleware/isBlank")
 
 // 댓글 불러오기 API
 router.get("/", loginCheck, async (req, res, next) => {
@@ -53,7 +53,7 @@ router.get("/", loginCheck, async (req, res, next) => {
         const logData = {
             ip: req.ip,
             userId: userId, 
-            apiName: '/comment/', 
+            apiName: '/comment', 
             restMethod: 'GET', 
             inputData: {postIdx}, 
             outputData: result, 
@@ -71,7 +71,7 @@ router.get("/", loginCheck, async (req, res, next) => {
 });
 
 // 댓글 등록 API
-router.post("/", loginCheck, contentValidator, async(req,res,next) => {
+router.post("/", loginCheck, isBlank('content'), async(req,res,next) => {
     const { postIdx, content } = req.body
     const userIdx = req.session.user.idx
     const userId = req.session.user.id
@@ -109,7 +109,7 @@ router.post("/", loginCheck, contentValidator, async(req,res,next) => {
         const logData = {
             ip: req.ip,
             userId: userId, 
-            apiName: '/comment/', 
+            apiName: '/comment', 
             restMethod: 'POST', 
             inputData: {postIdx, content}, 
             outputData: result, 
@@ -126,7 +126,7 @@ router.post("/", loginCheck, contentValidator, async(req,res,next) => {
 });
 
 // 댓글 수정 API
-router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {  
+router.put("/:idx", loginCheck, isBlank('content'), async (req,res,next) => {  
     const {content} = req.body
     const commentIdx = req.params.idx
     const userIdx = req.session.user.idx

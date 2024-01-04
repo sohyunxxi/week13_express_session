@@ -1,6 +1,6 @@
 const client = require("../config/mongodb")
 
-const createLogData = require("../modules/log");
+const createLogData = require("./log");
 
 const makeLog = async (req, res, result, next) => {
     const logEntry = createLogData(req, result);
