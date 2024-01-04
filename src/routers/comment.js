@@ -2,10 +2,12 @@ const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
 const queryConnect = require('../modules/queryConnect');
 const contentValidator = require('../middleware/commentValidator');
+const makeLog = require("../middleware/makelog");
 
 // 댓글 불러오기 API
 router.get("/", loginCheck, async (req, res, next) => {
     const { postIdx } = req.body;
+    const userId = req.session.user.id
 
     const result = {
         success: false,
@@ -48,6 +50,18 @@ router.get("/", loginCheck, async (req, res, next) => {
 
         result.success = true;
         result.message = "댓글 가져오기 성공";
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/comment/', 
+            restMethod: 'GET', 
+            inputData: {postIdx}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result);
     } catch (error) {
         result.message = error.message;
@@ -60,6 +74,8 @@ router.get("/", loginCheck, async (req, res, next) => {
 router.post("/", loginCheck, contentValidator, async(req,res,next) => {
     const { postIdx, content } = req.body
     const userIdx = req.session.user.idx
+    const userId = req.session.user.id
+
     const result = {
         "success" : false, 
         "message" : "",
@@ -80,16 +96,28 @@ router.post("/", loginCheck, contentValidator, async(req,res,next) => {
 
         const { rowCount } = await queryConnect(query);
        
-       if(rowCount>0){
+       if(rowCount==0){
+            return next({
+                message: '댓글 등록 실패',
+                status: 500
+            });
+        }
         result.success=true
         result.data= rowCount
         result.message = "댓글 등록 성공"
-        }
-        else{
-            result.success=false
-            result.message = "댓글 등록 실패"
-            console.log(data)
-        }
+
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/comment/', 
+            restMethod: 'POST', 
+            inputData: {postIdx, content}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result) 
     } catch(e){ 
         result.message=e.message
@@ -102,6 +130,8 @@ router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {
     const {content} = req.body
     const commentIdx = req.params.idx
     const userIdx = req.session.user.idx
+    const userId = req.session.user.id
+
     const result = {
         "success" : false, 
         "message" : "",
@@ -116,15 +146,30 @@ router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {
 
         const { rowCount } = await queryConnect(query);
 
-        if(rowCount > 0){
-            result.success=true
-            result.data= rowCount
-            result.message = "댓글 수정 성공"
+        if(rowCount == 0){
+            return next({
+                message: '댓글 수정 실패',
+                status: 500
+            });
         }
-        else{
-            result.success=false
-            result.message = "댓글 수정 실패"
-        }
+        
+        result.success=true
+        result.data= rowCount
+        result.message = "댓글 수정 성공"
+            
+       
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/comment/:idx', 
+            restMethod: 'PUT', 
+            inputData: {content}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result) 
     } catch(e){
         result.message=e.message
@@ -137,6 +182,8 @@ router.put("/:idx", loginCheck, contentValidator, async (req,res,next) => {
 router.delete("/:idx", loginCheck, async (req,res,next) => {
     const commentIdx = req.params.idx;
     const userIdx = req.session.user.idx;
+    const userId = req.session.user.id
+
     const result = {
         "success" : false, 
         "message" : "",
@@ -150,15 +197,28 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
         };
 
         const { rowCount } = await queryConnect(query);
-         if(rowCount > 0){
-             result.success=true
-             result.data= rowCount
-             result.message = "댓글 삭제 성공"
-         }
-         else{
-             result.success=true
-             result.message = "삭제 권한 없거나 게시물 존재하지 않음"
-         }
+        if(rowCount == 0){
+            return next({
+                message: '삭제 권한 없거나 게시물 존재하지 않음',
+                status: 500
+            });
+        }
+
+        result.success=true
+        result.data= rowCount
+        result.message = "댓글 삭제 성공"
+         const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/comment/:idx', 
+            restMethod: 'DELETE', 
+            inputData: {}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
          res.send(result)
      } catch(e) {
         result.message=e.message        

@@ -1,11 +1,15 @@
 const router = require("express").Router();
 const loginCheck = require('../middleware/loginCheck');
 const queryConnect = require('../modules/queryConnect');
+const makeLog = require("../middleware/makelog");
+
 const { titleValidator, 
         contentValidator }  = require('../middleware/postValidator');
 
 // 게시물 목록 불러오기 API
 router.get("/", loginCheck, async (req, res, next) => {
+    const userId = req.session.user.id
+
     const result = {
         success: false,
         message: "",
@@ -31,8 +35,21 @@ router.get("/", loginCheck, async (req, res, next) => {
             postingTitle: row.title,
             postingDate: row.created_at,
         }));
+
         result.success = true;
-        result.message = "게시물 불러오기 성공";        
+        result.message = "게시물 불러오기 성공";    
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/post/', 
+            restMethod: 'GET', 
+            inputData: {}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);    
         res.send(result);
     } catch (error) {
         console.error('게시물 불러오기 오류: ', error);
@@ -44,6 +61,7 @@ router.get("/", loginCheck, async (req, res, next) => {
 // 게시물 불러오기 API
 router.get("/:postIdx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.postIdx;
+    const userId = req.session.user.id
 
     const result = {
         success: false,
@@ -60,22 +78,36 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
             values: [postIdx],
         };
         const { rows } = await queryConnect(query);
-        if (rows.length > 0) {
-            const post = {
-                postIdx: rows[0].idx,
-                postWriterIdx: rows[0].account_idx,
-                postingWriterId: rows[0].account_id,
-                postingContent: rows[0].content,
-                postingTitle: rows[0].title,
-                postingDate: rows[0].created_at
-            };
-            result.success = true;
-            result.data = post;
-        } else {
-            result.success = false;
-            result.message = "게시물 불러오기 실패";
-            result.data = rows;
-        }
+        if (rows.length == 0) {
+            return next({
+                message: '게시물 불러오기 실패',
+                status: 500
+            });
+        } 
+
+        const post = {
+            postIdx: rows[0].idx,
+            postWriterIdx: rows[0].account_idx,
+            postingWriterId: rows[0].account_id,
+            postingContent: rows[0].content,
+            postingTitle: rows[0].title,
+            postingDate: rows[0].created_at
+        };
+        result.success = true;
+        result.data = post; 
+        
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/post:/postIdx', 
+            restMethod: 'GET', 
+            inputData: {}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result);
     } catch (error) {
         console.error('게시물 가져오기 오류 발생: ', error.message);
@@ -87,6 +119,8 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
 // 게시물 쓰기 API
 router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, next) => {
     const userIdx = req.session.user.idx;
+    const userId = req.session.user.id
+
     const { content, title } = req.body;
 
     const result = {
@@ -101,13 +135,28 @@ router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, 
         };
 
         const { rowCount } = await queryConnect(query);
-        if (rowCount > 0) {
-            result.success = true;
-            result.data = rowCount;
-        } else {
-            result.success = false;
-            result.message = "게시물 등록 오류";
+        if (rowCount == 0) {
+            return next({
+                message: '게시물 등록 오류',
+                status: 500
+            });
+            
         }
+        result.success = true;
+        result.message="게시물 등록 성공";
+        result.data = rowCount;
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/post/', 
+            restMethod: 'POST', 
+            inputData: {content, title}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result);
     } catch (e) {
         result.message = e.message;
@@ -119,6 +168,7 @@ router.post("/", loginCheck, titleValidator, contentValidator, async (req, res, 
 router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req, res, next) => {
     const postIdx = req.params.postIdx;
     const userIdx = req.session.user.idx;
+    const userId = req.session.user.id
 
     const { content, title } = req.body;
 
@@ -135,13 +185,28 @@ router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req
 
         const { rowCount } = await queryConnect(query);
 
-        if (rowCount > 0) {
-            result.success = true;
-            result.message = "업데이트 성공";
-        } else {
-            result.success = false;
-            result.message = "해당 게시물이나 권한이 없습니다.";
+        if (rowCount == 0) {
+            return next({
+                message: '해당 게시물이나 권한이 없습니다.',
+                status: 400
+            });
+            
         }
+
+        result.success = true;
+        result.message = "업데이트 성공";
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/post/:postIdx', 
+            restMethod: 'PUT', 
+            inputData: {content, title}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result);
     } catch (e) {
         result.message = e.message;
@@ -153,6 +218,7 @@ router.put("/:postIdx", loginCheck, titleValidator, contentValidator, async (req
 router.delete("/:idx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.idx;
     const userIdx = req.session.user.idx;
+    const userId = req.session.user.id
 
     const result = {
         "success": false,
@@ -165,13 +231,28 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
         };
 
         const { rowCount } = await queryConnect(query);
-        if (rowCount > 0) {
-            result.success = true;
-            result.message = "게시물 삭제 성공";
-        } else {
-            result.success = false;
-            result.message = "게시물 삭제 실패. 해당 게시물이나 권한이 없습니다.";
-        }
+        if (rowCount == 0) {
+            return next({
+                message: '게시물 삭제 실패. 해당 게시물이나 권한이 없습니다.',
+                status: 400
+            });
+
+        } 
+        result.success = true;
+        result.message = "게시물 삭제 성공";
+
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/post/:idx', 
+            restMethod: 'DELETE', 
+            inputData: {content, title}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result);
     } catch (e) {
         result.message = e.message;        

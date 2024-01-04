@@ -14,3 +14,6 @@ const connectToMongo = async () => {
 };
 
 module.exports = connectToMongo;
+
+//api를 여러번 연결하다 보면 중간에 postman이 가져오지 못하는 오류??
+

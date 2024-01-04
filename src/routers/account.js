@@ -20,7 +20,7 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
         message: '로그인 실패',
         data: null,
     };
-
+    console.log(req);
     try {
         const query = {
             text: 'SELECT * FROM account WHERE id = $1 AND pw = $2',
@@ -29,20 +29,19 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
 
         const { rows } = await queryConnect(query);
         
-        if (rows.length > 0) {
-            result.success = true;
-            result.message = '로그인 성공';
-            result.data = rows[0];
-            req.session.user = rows[0];
-        } else {
+        if (rows.length == 0) {
             result.message = '해당하는 계정이 없습니다.';
         }
+        result.success = true;
+        result.message = '로그인 성공';
+        result.data = rows[0];
+        req.session.user = rows[0];
 
         // 로그 데이터를 생성하여 전달
         const logData = {
             ip: req.ip,
             userId: id, // 로그인 시 사용자 ID를 사용
-            apiName: '/login', // 로그인 API에 대한 정보
+            apiName: '/account/login', // 로그인 API에 대한 정보
             restMethod: 'POST', // POST 방식으로 로그인
             inputData: { id }, // 로그인 시 입력된 ID 정보
             outputData: result, // 로그인 결과
@@ -65,11 +64,25 @@ router.post('/login', idValidator, pwValidator, async (req, res, next) => {
 // 로그아웃 API
 router.post('/logout', loginCheck, async (req, res, next) => {
     const id = req.session.user.id
+    console.log(req);
     const result = {
         success: false,
         message: "로그아웃 실패",
         data: null
     };
+    const logData = {
+        ip: req.ip,
+        userId: id, // 로그아웃 시 사용자 ID를 사용
+        apiName: '/account/logout', // 로그아웃 API에 대한 정보
+        restMethod: 'POST', // POST 방식으로 로그아웃
+        inputData: { }, // 로그아웃
+        outputData: result, // 로그아웃 결과
+        time: new Date(), // 현재 시간
+    };
+
+    // makeLog 함수에 로그 데이터 전달
+    makeLog(req, res, logData, next);
+
         req.session.destroy((err) => {
             if (err) {
                 return next({
@@ -79,19 +92,7 @@ router.post('/logout', loginCheck, async (req, res, next) => {
             }
             result.success = true;
             result.message = '로그아웃 성공';
-            const logData = {
-                ip: req.ip,
-                userId: id, // 로그아웃 시 사용자 ID를 사용
-                apiName: '/logout', // 로그아웃 API에 대한 정보
-                restMethod: 'POST', // POST 방식으로 로그아웃
-                inputData: { }, // 로그아웃
-                outputData: result, // 로그아웃 결과
-                time: new Date(), // 현재 시간
-            };
-    
-            // makeLog 함수에 로그 데이터 전달
-            makeLog(req, res, logData, next);
-    
+
             res.status(200).send(result);
         });
 });
@@ -99,7 +100,7 @@ router.post('/logout', loginCheck, async (req, res, next) => {
 // id 찾기 API
 router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
     const { name, email } = req.body;
-
+    console.log(req);
     const result = {
         success: false,
         message: "아이디 찾기 실패",
@@ -114,15 +115,30 @@ router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
 
         const { rows } = await queryConnect(query);
 
-        if (rows.length > 0) {
-            const foundId = rows[0].id;
-            result.success = true;
-            result.message = `아이디 찾기 성공, 아이디는 ${foundId} 입니다.`;
-            result.data = { id: foundId };
-        } else {
-            result.success = false;
-            result.message = "일치하는 정보 없음";
+        if (rows.length == 0) {
+            return next({
+                message : "일치하는 정보 없음",
+                status : 404
+            });  
+           
         }
+        const foundId = rows[0].id;
+        result.success = true;
+        result.message = `아이디 찾기 성공, 아이디는 ${foundId} 입니다.`;
+        result.data = { id: foundId };
+
+        const logData = {
+            ip: req.ip,
+            userId: "", 
+            apiName: '/account/findid', 
+            restMethod: 'GET', 
+            inputData: { name, email }, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result);
        // 이 위치에서 응답을 보내도록 변경
     } catch (error) {
@@ -134,7 +150,7 @@ router.get("/findid", nameValidator, emailValidator, async (req, res, next) => {
 // pw 찾기 API
 router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res,next) => {
     const { name, email, id } = req.body
-
+    console.log(req);
     const result = {
         "success" : false, 
         "message" : "",
@@ -155,12 +171,24 @@ router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res
             });                
 
         }
-        else {
-            const foundPw = rows[0].pw;
-            result.success = true;
-            result.message = `비밀번호 찾기 성공, 비밀번호는 ${foundPw} 입니다.`;
-            result.data = { pw: foundPw };
-        }       
+       
+        const foundPw = rows[0].pw;
+        result.success = true;
+        result.message = `비밀번호 찾기 성공, 비밀번호는 ${foundPw} 입니다.`;
+        result.data = { pw: foundPw };
+        
+        const logData = {
+            ip: req.ip,
+            userId: id, 
+            apiName: '/account/findpw', 
+            restMethod: 'GET', 
+            inputData: { name, email, id }, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);       
         res.send(result);
     } catch (error) {
         result.message = error.message;
@@ -170,7 +198,7 @@ router.get("/findpw", nameValidator, emailValidator, idValidator, async (req,res
 // 회원가입 API
 router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwValidator, birthValidator, genderValidator, addressValidator, async (req, res, next) => {
     const { id, pw, name, email, tel, birth, address, gender } = req.body;
-
+    console.log(req);
     const result = {
         success: false,
         message: '',
@@ -186,24 +214,39 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
 
 
         if (rows.length > 0) {
-            result.success = false;
-            result.message = "이미 사용 중";
+            return next({
+                message : "이미 사용 중",
+                status : 204
+            });   
         } else {
             const insertQuery = {
                 text: 'INSERT INTO account (name, id, pw, email, birth, tel, address, gender) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
                 values: [name, id, pw, email, birth, tel, address, gender],
             };
-            const { rows } = await queryConnect(insertQuery);
+            const { rowCount } = await queryConnect(insertQuery);
 
-            if(rows.length>0){
-                result.success=true
-                result.data= rows
-            }
-            else{
-                result.success=true
+            if (rowCount > 0) {
+                result.success = true;
+                result.data = rowCount;
                 result.message = "회원 가입 성공"
+
+            } else {
+                result.success = false;
+                result.message = "회원 가입 오류";
             }
         }
+        const logData = {
+            ip: req.ip,
+            userId: id, 
+            apiName: '/account', 
+            restMethod: 'POST', 
+            inputData: { id, pw, name, email, tel, birth, address, gender }, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);  
         res.send(result)  
     }
     catch(e){
@@ -215,6 +258,8 @@ router.post("/", nameValidator, emailValidator, idValidator, telValidator, pwVal
 // 회원정보 보기 API
 router.get("/my", loginCheck, async (req, res, next) => {
     const userIdx = req.session.user.idx
+    const userId = req.session.user.id
+    console.log(req);
     const result = {
         success: false,
         message: '',
@@ -228,15 +273,29 @@ router.get("/my", loginCheck, async (req, res, next) => {
         };
         const { rows } = await queryConnect(query);
 
-        if(rows.length>0){
-            result.success = true;
-            result.message = "회원정보 불러오기 성공";
-            result.data = rows;
+        if(rows.length==0){
+            return next({
+                message : "해당 계정 없음",
+                status : 204
+            });  
+
         }
-        else{
-            result.success=true
-            result.message = "해당 계정 없음"
-        }
+
+        result.success = true;
+        result.message = "회원정보 불러오기 성공";
+        result.data = rows;
+
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/account/my', 
+            restMethod: 'GET', 
+            inputData: {}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        await makeLog(req, res, logData, next);
         res.send(result) 
     } catch (error) {
         result.message=error.message
@@ -247,6 +306,8 @@ router.get("/my", loginCheck, async (req, res, next) => {
 router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderValidator, addressValidator, async (req, res, next) => {
     const { pw, tel, birth, gender, address } = req.body;
     const userIdx = req.session.user.idx
+    const userId = req.session.user.id
+    console.log(req);
     const result = {
         success: false,
         message: '',
@@ -261,14 +322,28 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
         const { rowCount } = await queryConnect(query);
 
         if(rowCount.length == 0){
-            result.message = "회원정보 수정 실패"
-            console.error("회원정보 수정 실패: 데이터 없음", data);
+            return next({
+                message : "회원정보 수정 실패",
+                status : 404
+            });  
         }
-        else{
-            result.success = true
-            result.data = [pw, tel, gender, address, birth]
-            result.message = "회원정보 수정 성공"
-        }
+       
+        result.success = true
+        result.data = [pw, tel, gender, address, birth]
+        result.message = "회원정보 수정 성공"
+        
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/account/my', 
+            restMethod: 'PUT', 
+            inputData: {pw, tel, birth, gender, address}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);
         res.send(result)
     }
     catch(error){
@@ -279,6 +354,8 @@ router.put("/my", loginCheck, pwValidator, telValidator, birthValidator, genderV
 // 회원정보 삭제 API
 router.delete("/my", loginCheck, async (req, res, next) => {
     const userIdx = req.session.user.idx;
+    const userId = req.session.user.id
+    console.log(req);
     const result = {
         success: false,
         message: '',
@@ -303,13 +380,27 @@ router.delete("/my", loginCheck, async (req, res, next) => {
         const { rowCount } = await queryConnect(query);
 
         if (rowCount > 0) {
-            result.success = true;
-            result.data = rowCount;
-            result.message = '회원정보 삭제 성공';
-        } else {
-            result.success = false;
-            result.message = "회원정보 삭제 실패: 해당하는 사용자 없음";
+            return next({
+                message : "회원정보 삭제 실패",
+                status : 404
+            }); 
         }
+        result.success = true;
+        result.data = rowCount;
+        result.message = '회원정보 삭제 성공';
+
+        const logData = {
+            ip: req.ip,
+            userId: userId, 
+            apiName: '/account/my', 
+            restMethod: 'DELETE', 
+            inputData: {}, 
+            outputData: result, 
+            time: new Date(), 
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        await makeLog(req, res, logData, next);  
         res.send(result);
     } catch (error) {
         result.error = error;
