@@ -20,7 +20,7 @@ router.get("/", loginCheck, async (req, res, next) => {//관리자 미들웨어 
         message: "",
         status: 204
     };
-
+    console.log("req: ", req);
     try {
         // 이 부분에서 함수를 호출하여 client를 얻도록 수정
         
