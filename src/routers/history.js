@@ -26,7 +26,7 @@ router.get("/", loginCheck, isAdmin, async (req, res, next) => {//관리자 미�
             query.apiName = apiName;
         }
 
-        if (order === "asc") { // 오름차순 (오래된 순부터 요청하는 경우)
+        if (order === "asc") {
             num = 1;
         }
 

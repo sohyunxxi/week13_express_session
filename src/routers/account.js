@@ -344,17 +344,6 @@ router.delete("/my", loginCheck, async (req, res, next) => {
     };
 
     try {
-        req.session.destroy((err) => {
-            if (err) {
-                return next({
-                    status : 500,
-                    message: "세션 파기 오류",
-                    err
-                })
-            }
-            result.success = true;
-            result.message = '로그아웃 성공';
-        });
         const query = {
             text: 'DELETE FROM account WHERE idx = $1',
             values: [userIdx],
@@ -363,30 +352,40 @@ router.delete("/my", loginCheck, async (req, res, next) => {
 
         if (rowCount == 0) {
             return next({
-                message : "회원정보 삭제 실패",
-                status : 400
-            }); 
+                message: "회원정보 삭제 실패",
+                status: 400
+            });
         }
-        result.success = true;
-        result.data = rowCount;
-        result.message = '회원정보 삭제 성공';
 
-        const logData = {
-            ip: req.ip,
-            userId: userId, 
-            apiName: '/account/my', 
-            restMethod: 'DELETE', 
-            inputData: {}, 
-            outputData: result, 
-            time: new Date(), 
-        };
+        // 세션 파기
+        req.session.destroy((err) => {
+            if (err) {
+                return next({
+                    status: 500,
+                    message: "세션 파기 오류",
+                    err
+                });
+            }
+            result.success = true;
+            result.data = rowCount;
+            result.message = '회원정보 삭제 및 로그아웃 성공';
+            const logData = {
+                ip: req.ip,
+                userId: userId,
+                apiName: '/account/my',
+                restMethod: 'DELETE',
+                inputData: {},
+                outputData: result,
+                time: new Date(),
+            };
 
-        // makeLog 함수에 로그 데이터 전달
-        await makeLog(req, res, logData, next);  
-        res.send(result);
+            // makeLog 함수에 로그 데이터 전달
+            makeLog(req, res, logData, next);
+            res.send(result);
+        });
     } catch (error) {
         result.error = error;
-        result.status=500;
+        result.status = 500;
         return next(error);
     }
 });

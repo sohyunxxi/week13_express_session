@@ -38,15 +38,7 @@ router.get("/", loginCheck, async (req, res, next) => {
 
         const { rows } = await queryConnect(query);
 
-        result.data.comments = rows.map(row => ({ //테이블 컬럼에 있는 걸로 그냥 주기..
-            commentIdx: row.idx,
-            commentWriterIdx: row.account_idx,
-            commentWriterId: row.account_id,
-            commentPostIdx: row.post_idx,
-            commentTitle: row.title,
-            commentContent: row.content,
-            commentCreated: row.created_at
-        }));
+        result.data.comments = rows
 
         result.success = true;
         result.message = "댓글 가져오기 성공";
@@ -60,7 +52,6 @@ router.get("/", loginCheck, async (req, res, next) => {
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);
         res.send(result);
     } catch (error) {
@@ -116,7 +107,6 @@ router.post("/", loginCheck, isBlank('content'), async(req,res,next) => {
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);
         res.send(result) 
     } catch(e){ 
@@ -133,9 +123,10 @@ router.put("/:idx", loginCheck, isBlank('content'), async (req,res,next) => {
     const userId = req.session.user.id
 
     const result = {
-        "success" : false, 
-        "message" : "",
-        "data" : null 
+        success : false, 
+        message : "",
+        data : null ,
+        editable :false
     }
 
     try{
@@ -153,7 +144,8 @@ router.put("/:idx", loginCheck, isBlank('content'), async (req,res,next) => {
             });
         }
         
-        result.success=true
+        result.editable = true
+        result.success= true
         result.data= rowCount
         result.message = "댓글 수정 성공"
             
@@ -168,7 +160,6 @@ router.put("/:idx", loginCheck, isBlank('content'), async (req,res,next) => {
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);
         res.send(result) 
     } catch(e){
@@ -185,9 +176,10 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
     const userId = req.session.user.id
 
     const result = {
-        "success" : false, 
-        "message" : "",
-        "data" : null 
+        success : false, 
+        message : "",
+        data : null,
+        editable : false
     }
 
     try{
@@ -204,9 +196,10 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
             });
         }
 
-        result.success=true
-        result.data= rowCount
-        result.message = "댓글 삭제 성공"
+        result.success=true;
+        result.data= rowCount;
+        result.editable = true;
+        result.message = "댓글 삭제 성공";
          const logData = {
             ip: req.ip,
             userId: userId, 
@@ -217,7 +210,6 @@ router.delete("/:idx", loginCheck, async (req,res,next) => {
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);
          res.send(result)
      } catch(e) {

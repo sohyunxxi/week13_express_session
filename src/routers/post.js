@@ -13,7 +13,7 @@ router.get("/", loginCheck, async (req, res, next) => {
         success: false,
         message: "",
         data: {
-            posts: []  // posts 배열 초기화
+            posts: []
         }
     };
 
@@ -25,15 +25,7 @@ router.get("/", loginCheck, async (req, res, next) => {
                     ORDER BY post.created_at DESC`,
         };
         const { rows } = await queryConnect(query);
-
-        result.data.posts = rows.map(row => ({
-            postIdx: row.idx,
-            postWriterIdx: row.account_idx,
-            postingWriterId: row.account_id,
-            postingContent: row.content,
-            postingTitle: row.title,
-            postingDate: row.created_at,
-        }));
+        result.data.posts = rows
 
         result.success = true;
         result.message = "게시물 불러오기 성공";    
@@ -47,7 +39,6 @@ router.get("/", loginCheck, async (req, res, next) => {
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);    
         res.send(result);
     } catch (error) {
@@ -84,14 +75,7 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
             });
         } 
 
-        const post = {
-            postIdx: rows[0].idx,
-            postWriterIdx: rows[0].account_idx,
-            postingWriterId: rows[0].account_id,
-            postingContent: rows[0].content,
-            postingTitle: rows[0].title,
-            postingDate: rows[0].created_at
-        };
+        const post = rows
         result.success = true;
         result.data = post; 
         
@@ -105,7 +89,6 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);
         res.send(result);
     } catch (error) {
@@ -134,16 +117,18 @@ router.post("/", loginCheck, isBlank('content','title'), async (req, res, next) 
         };
 
         const { rowCount } = await queryConnect(query);
+
         if (rowCount == 0) {
             return next({
                 message: '게시물 등록 오류',
                 status: 500
             });
-            
         }
+
         result.success = true;
         result.message="게시물 등록 성공";
         result.data = rowCount;
+        
         const logData = {
             ip: req.ip,
             userId: userId, 
@@ -154,7 +139,6 @@ router.post("/", loginCheck, isBlank('content','title'), async (req, res, next) 
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);
         res.send(result);
     } catch (e) {
@@ -174,7 +158,8 @@ router.put("/:postIdx", loginCheck, isBlank('content','title'), async (req, res,
     const result = {
         success: false,
         message: "",
-        data: null
+        data: null,
+        editable : false
     };
     try {
         const query = {
@@ -189,9 +174,9 @@ router.put("/:postIdx", loginCheck, isBlank('content','title'), async (req, res,
                 message: '해당 게시물이나 권한이 없습니다.',
                 status: 400
             });
-            
         }
 
+        result.editable = true;
         result.success = true;
         result.message = "업데이트 성공";
         const logData = {
@@ -204,7 +189,6 @@ router.put("/:postIdx", loginCheck, isBlank('content','title'), async (req, res,
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);
         res.send(result);
     } catch (e) {
@@ -221,7 +205,8 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
 
     const result = {
         "success": false,
-        "message": ""
+        "message": "",
+        editable : false
     };
     try {
         const query = {
@@ -235,8 +220,9 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
                 message: '게시물 삭제 실패. 해당 게시물이나 권한이 없습니다.',
                 status: 400
             });
-
         } 
+
+        result.editable = true;
         result.success = true;
         result.message = "게시물 삭제 성공";
 
@@ -250,7 +236,6 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
             time: new Date(), 
         };
 
-        // makeLog 함수에 로그 데이터 전달
         await makeLog(req, res, logData, next);
         res.send(result);
     } catch (e) {

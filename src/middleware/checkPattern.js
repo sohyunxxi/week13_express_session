@@ -4,7 +4,7 @@ const checkPattern = (...items) => {
     return (req, res, next) => {
         for (const item of items) {
             const value = req.body[item];
-            const regex = item === 'birth' ? birthReq : eval(`${item}Req`);
+            const regex = eval(`${item}Req`);
 
             if (!value || (regex && !regex.test(value))) {
                 return next({
