@@ -1,4 +1,5 @@
 const isAdmin = (req, res, next) => {
+    
     const isAdmin = req.session.user.isadmin;
 
     if (!isAdmin) {

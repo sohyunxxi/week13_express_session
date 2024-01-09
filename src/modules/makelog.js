@@ -1,17 +1,16 @@
-const client = require("../config/mongodb")
+const client = require("../config/mongodb");
 
-const createLogData = require("./log");
-
-const makeLog = async (req, res, result, next) => {
-    const logEntry = createLogData(req, result);
+const makeLog = async (req, res, logData, next) => {
     try {
-        const db = await client()
+        const db = await client();
         const logHistory = db.collection("log");
-        await logHistory.insertOne(logEntry);
+        await logHistory.insertOne(logData);
         console.log("MongoDB insertion complete");
     } catch (error) {
-        console.error(error);
-    } 
+        console.log("MongoDB insertion fail");
+        console.error(error.stack);
+        next(error);
+    }
 };
 
 module.exports = makeLog;

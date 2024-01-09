@@ -1,17 +1,21 @@
 const router = require("express").Router()
+const jwt = require('jsonwebtoken');
 const loginCheck = require('../middleware/loginCheck');
+const isLogin = require("../middleware/isLogin");
 const queryConnect = require('../modules/queryConnect');
 const makeLog = require("../modules/makelog");
 const checkPattern = require("../middleware/checkPattern")
-
+const { idReq, pwReq, emailReq, nameReq, genderReq, birthReq, addressReq, telReq }= require("../config/patterns")
 
 // 로그인 API
-router.post('/login', checkPattern('id', 'pw'), async (req, res, next) => {
+router.post('/login', checkPattern('id', idReq), checkPattern('pw', pwReq), isLogin, async (req, res, next) => {
     const { id, pw } = req.body;
     const result = {
         success: false,
         message: '로그인 실패',
-        data: null,
+        data: {
+            token : ""
+        }
     };
 
     try {
@@ -29,10 +33,24 @@ router.post('/login', checkPattern('id', 'pw'), async (req, res, next) => {
             });
         }
 
+        const user = rows[0];
+
+        // 토큰 생성
+        const token = jwt.sign(
+            { id: user.id,  
+
+            }, 
+            process.env.SECRET_KEY,
+            {
+                "issuer":req.body.id,
+                "expiresIn":"1m"
+            }
+        );
+
         result.success = true;
         result.message = '로그인 성공';
-        result.data = rows[0];
-        req.session.user = rows[0];
+        result.data = user;
+        result.data.token = token
 
         const logData = {
             ip: req.ip,
@@ -57,36 +75,50 @@ router.post('/login', checkPattern('id', 'pw'), async (req, res, next) => {
 
 // 로그아웃 API
 router.post('/logout', loginCheck, async (req, res, next) => {
-    const id = req.session.user.id
+    const id = req.user.id; // 사용자 정보는 loginCheck 미들웨어에서 req.user에 저장되어 있습니다.
     const result = {
         success: false,
-        message: "로그아웃 실패",
+        message: '로그아웃 실패',
         data: null
     };
+
     const logData = {
         ip: req.ip,
-        userId: id, 
-        apiName: '/account/logout', 
-        restMethod: 'POST', 
-        inputData: { }, 
-        outputData: result, 
-        time: new Date(), 
+        userId: id,
+        apiName: '/account/logout',
+        restMethod: 'POST',
+        inputData: {},
+        outputData: result,
+        time: new Date(),
     };
 
     makeLog(req, res, logData, next);
 
-    req.session.destroy((err) => {
+    // 클라이언트에서 전달된 토큰을 검증하는 로직 추가
+    const token = req.headers.token;
+
+    if (!token) {
+        return next({
+            status: 401,
+            message: '토큰이 없습니다.'
+        });
+    }
+
+    // 토큰이 유효하면 로그아웃 성공 처리
+    jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
         if (err) {
             return next({
-                status : 500,
-                err
-            })
+                status: 401,
+                message: '토큰 검증 실패'
+            });
         }
+
         result.success = true;
         result.message = '로그아웃 성공';
-        res.status(200).send(result);
+        res.status(200).json(result);
     });
 });
+
 
 // id 찾기 API
 router.get("/findid", checkPattern('name', 'email'),async (req, res, next) => {
@@ -244,8 +276,9 @@ router.post("/", checkPattern('id', 'pw', 'name', 'email', 'gender', 'birth', 'a
 
 // 회원정보 보기 API
 router.get("/my", loginCheck, async (req, res, next) => {
-    const userIdx = req.session.user.idx
-    const userId = req.session.user.id
+    const userIdx = req.user.idx; // req.user를 통해 사용자 정보에 접근
+    const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근
+
     const result = {
         success: false,
         message: '',
@@ -257,13 +290,14 @@ router.get("/my", loginCheck, async (req, res, next) => {
             text: 'SELECT id, pw, email, name, address, birth, tel, gender FROM account WHERE idx =$1',
             values: [userIdx],
         };
+
         const { rows } = await queryConnect(query);
 
-        if(rows.length==0){
+        if (rows.length === 0) {
             return next({
-                message : "해당 계정 없음",
-                status : 404
-            });  
+                message: "해당 계정 없음",
+                status: 404
+            });
         }
 
         result.success = true;
@@ -272,26 +306,28 @@ router.get("/my", loginCheck, async (req, res, next) => {
 
         const logData = {
             ip: req.ip,
-            userId: userId, 
-            apiName: '/account/my', 
-            restMethod: 'GET', 
-            inputData: {}, 
-            outputData: result, 
-            time: new Date(), 
+            userId: userId,
+            apiName: '/account/my',
+            restMethod: 'GET',
+            inputData: {},
+            outputData: result,
+            time: new Date(),
         };
 
         await makeLog(req, res, logData, next);
-        res.send(result) 
+        res.send(result);
     } catch (error) {
-        result.message=error.message
+        result.message = error.message;
+        next(error);
     }
 });
 
 // 회원정보 수정 API
 router.put("/my", loginCheck, checkPattern('pw', 'gender', 'birth', 'address', 'tel'), async (req, res, next) => {
     const { pw, tel, birth, gender, address } = req.body;
-    const userIdx = req.session.user.idx;
-    const userId = req.session.user.id;
+    const userIdx = req.user.idx; // req.user를 통해 사용자 정보에 접근
+    const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근
+
     const result = {
         success: false,
         message: '',
@@ -332,11 +368,11 @@ router.put("/my", loginCheck, checkPattern('pw', 'gender', 'birth', 'address', '
     }
 });
 
-
 // 회원정보 삭제 API
 router.delete("/my", loginCheck, async (req, res, next) => {
-    const userIdx = req.session.user.idx;
-    const userId = req.session.user.id
+    const userIdx = req.user.idx; // req.user를 통해 사용자 정보에 접근
+    const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근
+
     const result = {
         success: false,
         message: '',
@@ -348,41 +384,36 @@ router.delete("/my", loginCheck, async (req, res, next) => {
             text: 'DELETE FROM account WHERE idx = $1',
             values: [userIdx],
         };
+
         const { rowCount } = await queryConnect(query);
 
-        if (rowCount == 0) {
+        if (rowCount === 0) {
             return next({
                 message: "회원정보 삭제 실패",
                 status: 400
             });
         }
 
-        // 세션 파기
-        req.session.destroy((err) => {
-            if (err) {
-                return next({
-                    status: 500,
-                    message: "세션 파기 오류",
-                    err
-                });
-            }
-            result.success = true;
-            result.data = rowCount;
-            result.message = '회원정보 삭제 및 로그아웃 성공';
-            const logData = {
-                ip: req.ip,
-                userId: userId,
-                apiName: '/account/my',
-                restMethod: 'DELETE',
-                inputData: {},
-                outputData: result,
-                time: new Date(),
-            };
+        result.success = true;
+        result.data = rowCount;
+        result.message = '회원정보 삭제 성공';
 
-            // makeLog 함수에 로그 데이터 전달
-            makeLog(req, res, logData, next);
-            res.send(result);
-        });
+        const logData = {
+            ip: req.ip,
+            userId,
+            apiName: '/account/my',
+            restMethod: 'DELETE',
+            inputData: {},
+            outputData: result,
+            time: new Date(),
+        };
+
+        // makeLog 함수에 로그 데이터 전달
+        makeLog(req, res, logData, next);
+
+        // 클라이언트에게는 로그아웃 메시지만 전송하므로 토큰 검증이 필요 없음
+        result.message = '로그아웃 성공';
+        res.send(result);
     } catch (error) {
         result.error = error;
         result.status = 500;

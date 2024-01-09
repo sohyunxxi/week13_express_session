@@ -56,8 +56,7 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
     const result = {
         success: false,
         message: "",
-        data: null // editable 추가하기 -> 세션으로 비교해서 넣기? 
-        
+        data: null
     };
     try {
         const query = {
@@ -128,7 +127,7 @@ router.post("/", loginCheck, isBlank('content','title'), async (req, res, next) 
         result.success = true;
         result.message="게시물 등록 성공";
         result.data = rowCount;
-        
+
         const logData = {
             ip: req.ip,
             userId: userId, 

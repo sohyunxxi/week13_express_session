@@ -5,8 +5,8 @@ const loginCheck = require('../middleware/loginCheck');
 const dateReq = /^(\d{4})(-\d{2})?(-\d{2})?(T\d{2}(:\d{2}(:\d{2}(\.\d{3})?)?)?(Z)?)?$/;
 
 // 로그 불러오기
-router.get("/", loginCheck, isAdmin, async (req, res, next) => {//관리자 미들웨어 추가
-    const {id, order, apiName,startDateTime, endDateTime} = req.body;
+router.get("/", loginCheck, isAdmin, async (req, res, next) => {
+    const {id, order, apiName,startDateTime, endDateTime} = req.body; // params 로 바꾸기
     const result = {
         data: null,
         message: "",
@@ -32,7 +32,7 @@ router.get("/", loginCheck, isAdmin, async (req, res, next) => {//관리자 미�
 
         if (startDateTime && dateReq.test(startDateTime) && endDateTime && dateReq.test(endDateTime)) {
             query.time = {
-                $gte: new Date(startDateTime),
+                $gte: new Date(startDateTime), // 시간 바꾸기 -> T, Z 빼기
                 $lte: new Date(endDateTime)
             };
         }
