@@ -8,7 +8,7 @@ const checkPattern = require("../middleware/checkPattern")
 const { idReq, pwReq, emailReq, nameReq, genderReq, birthReq, addressReq, telReq }= require("../config/patterns")
 
 // 로그인 API
-router.post('/login', checkPattern('id', idReq), checkPattern('pw', pwReq), isLogin, async (req, res, next) => {
+router.post('/login', isLogin, checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), async (req, res, next) => {
     const { id, pw } = req.body;
     const result = {
         success: false,
@@ -121,7 +121,7 @@ router.post('/logout', loginCheck, async (req, res, next) => {
 
 
 // id 찾기 API
-router.get("/findid", checkPattern('name', nameReq), checkPattern('email', emailReq),async (req, res, next) => {
+router.get("/findid", checkPattern(nameReq,'name'), checkPattern( emailReq,'email'),async (req, res, next) => {
     const { name, email } = req.body;
     const result = {
         success: false,
@@ -169,7 +169,7 @@ router.get("/findid", checkPattern('name', nameReq), checkPattern('email', email
 });
 
 // pw 찾기 API
-router.get("/findpw", checkPattern('name', nameReq), checkPattern('email', emailReq), checkPattern('id', idReq), async (req,res,next) => {
+router.get("/findpw",  checkPattern(nameReq,'name'), checkPattern( emailReq,'email'), checkPattern(idReq,'id'), async (req,res,next) => {
     const { name, email, id } = req.body
     const result = {
         "success" : false, 
@@ -216,7 +216,7 @@ router.get("/findpw", checkPattern('name', nameReq), checkPattern('email', email
 });
 
 // 회원가입 API
-router.post("/", checkPattern('name', nameReq), checkPattern('email', emailReq), checkPattern('id', idReq), checkPattern('pw', pwReq), checkPattern('gender', genderReq), checkPattern('birth', birthReq),checkPattern('tel', telReq), checkPattern('address',addressReq), async (req, res, next) => {
+router.post("/", checkPattern(nameReq,'name'), checkPattern( emailReq,'email'), checkPattern(idReq,'id'), checkPattern(pwReq, 'pw'), checkPattern(genderReq,'gender'), checkPattern(birthReq, 'birth'),checkPattern(telReq,'tel'), checkPattern(addressReq, 'address'), async (req, res, next) => {
     const { id, pw, name, email, tel, birth, address, gender } = req.body;
     const result = {
         success: false,
@@ -323,7 +323,7 @@ router.get("/my", loginCheck, async (req, res, next) => {
 });
 
 // 회원정보 수정 API
-router.put("/my", loginCheck,  checkPattern('pw', pwReq), checkPattern('gender', genderReq), checkPattern('birth', birthReq),checkPattern('tel', telReq), checkPattern('address',addressReq), async (req, res, next) => {
+router.put("/my", loginCheck,checkPattern(pwReq, 'pw'), checkPattern(genderReq,'gender'), checkPattern(birthReq, 'birth'),checkPattern(telReq,'tel'), checkPattern(addressReq, 'address'), async (req, res, next) => {
     const { pw, tel, birth, gender, address } = req.body;
     const userIdx = req.user.idx; // req.user를 통해 사용자 정보에 접근
     const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근

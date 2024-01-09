@@ -1,32 +1,42 @@
+const jwt = require('jsonwebtoken');
+const session = require('express-session');
+
+
+const users = {}; // 사용자 정보 및 세션을 저장할 객체
+
 const isLogin = (req, res, next) => {
-    try {
-        const token = req.headers.token;
+  const { username } = req.body;
+  const secretKey = process.env.SECRET_KEY;
 
-        if (!token) {
-            return next({
-                message: '토큰이 없습니다.',
-                status: 401,
-            });
-        }
+  if (req.session.isLoggedIn) {
+    // 이미 로그인한 경우
+    res.status(401).json({ message: '이미 로그인 중입니다. 원래 디바이스에서 로그아웃합니다.' });
+  } else {
+    // 세션에 사용자 정보 저장
+    req.session.isLoggedIn = true;
+    req.session.user = { username };
 
-        jwt.verify(token, SECRET_KEY, (err, decoded) => {
-            if (err) {
-                return next({
-                    message: '토큰 검증 실패',
-                    status: 401,
-                });
-            }
+    if (users[username]) {
+      // 이미 다른 디바이스에서 로그인한 경우
+      res.message = '중복 로그인 - 처음 로그인한 디바이스에서 로그아웃합니다.';
+      req.session.destroy(() => {
+        // 세션 해제 후 로그인 처리
+        const token = jwt.sign({ username }, secretKey, { expiresIn: '1m' });
+        users[username] = token;
+        req.user = { username, token };
+        next();
+      });
+    } else {
+      // 새로운 로그인인 경우 토큰 발급
+      const token = jwt.sign({ username }, secretKey, { expiresIn: '1m' });
+      users[username] = token;
 
-            req.user = decoded; // 토큰에서 해독한 정보를 req.user에 저장
-            next();
-        });
-    } catch (error) {
-        console.error('isLogin 미들웨어 오류:', error);
-        return next({
-            message: '로그인 상태 확인 중 오류 발생',
-            status: 401,
-        });
+      // 사용자 정보 및 토큰을 요청 객체에 추가
+      req.user = { username, token };
+
+      next();
     }
+  }
 };
 
 module.exports = isLogin;
