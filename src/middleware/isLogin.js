@@ -9,13 +9,17 @@ const isLogin = (req, res, next) => {
             });
         }
 
-        const decoded = jwt.verify(token, SECRET_KEY);
+        jwt.verify(token, SECRET_KEY, (err, decoded) => {
+            if (err) {
+                return next({
+                    message: '토큰 검증 실패',
+                    status: 401,
+                });
+            }
 
-        // 토큰이 유효하면 사용자 정보를 세션에 저장
-        req.session.isLoggedIn = true;
-        req.session.user = decoded;
-
-        next();
+            req.user = decoded; // 토큰에서 해독한 정보를 req.user에 저장
+            next();
+        });
     } catch (error) {
         console.error('isLogin 미들웨어 오류:', error);
         return next({
@@ -24,3 +28,5 @@ const isLogin = (req, res, next) => {
         });
     }
 };
+
+module.exports = isLogin;
