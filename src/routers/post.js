@@ -7,7 +7,7 @@ const isBlank = require("../middleware/isBlank")
 
 // 게시물 목록 불러오기 API
 router.get("/", loginCheck, async (req, res, next) => {
-    const userId = req.session.user.id
+    const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근
 
     const result = {
         success: false,
@@ -31,7 +31,7 @@ router.get("/", loginCheck, async (req, res, next) => {
         result.message = "게시물 불러오기 성공";    
         const logData = {
             ip: req.ip,
-            userId: userId, 
+            userId,  // req.user를 통해 사용자 정보에 접근
             apiName: '/post', 
             restMethod: 'GET', 
             inputData: {}, 
@@ -48,10 +48,11 @@ router.get("/", loginCheck, async (req, res, next) => {
     }
 });
 
+
 // 게시물 불러오기 API
 router.get("/:postIdx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.postIdx;
-    const userId = req.session.user.id
+    const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근
 
     const result = {
         success: false,
@@ -80,7 +81,7 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
         
         const logData = {
             ip: req.ip,
-            userId: userId, 
+            userId,  // req.user를 통해 사용자 정보에 접근
             apiName: '/post:/postIdx', 
             restMethod: 'GET', 
             inputData: {}, 
@@ -98,9 +99,9 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
 });
 
 // 게시물 쓰기 API
-router.post("/", loginCheck, isBlank('content','title'), async (req, res, next) => {
-    const userIdx = req.session.user.idx;
-    const userId = req.session.user.id
+router.post("/", loginCheck, isBlank('content', 'title'), async (req, res, next) => {
+    const userIdx = req.user.idx;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.user.id;    // req.user를 통해 사용자 정보에 접근
 
     const { content, title } = req.body;
 
@@ -125,67 +126,17 @@ router.post("/", loginCheck, isBlank('content','title'), async (req, res, next) 
         }
 
         result.success = true;
-        result.message="게시물 등록 성공";
+        result.message = "게시물 등록 성공";
         result.data = rowCount;
 
         const logData = {
             ip: req.ip,
-            userId: userId, 
-            apiName: '/post', 
-            restMethod: 'POST', 
-            inputData: {content, title}, 
-            outputData: result, 
-            time: new Date(), 
-        };
-
-        await makeLog(req, res, logData, next);
-        res.send(result);
-    } catch (e) {
-        result.message = e.message;
-        return next(e);
-    }
-});
-
-// 게시물 수정하기 API
-router.put("/:postIdx", loginCheck, isBlank('content','title'), async (req, res, next) => {
-    const postIdx = req.params.postIdx;
-    const userIdx = req.session.user.idx;
-    const userId = req.session.user.id
-
-    const { content, title } = req.body;
-
-    const result = {
-        success: false,
-        message: "",
-        data: null,
-        editable : false
-    };
-    try {
-        const query = {
-            text: 'UPDATE post SET title = $1, content = $2 WHERE idx = $3 AND account_idx = $4',
-            values: [title, content, postIdx, userIdx],
-        };
-
-        const { rowCount } = await queryConnect(query);
-
-        if (rowCount == 0) {
-            return next({
-                message: '해당 게시물이나 권한이 없습니다.',
-                status: 400
-            });
-        }
-
-        result.editable = true;
-        result.success = true;
-        result.message = "업데이트 성공";
-        const logData = {
-            ip: req.ip,
-            userId: userId, 
-            apiName: '/post/:postIdx', 
-            restMethod: 'PUT', 
-            inputData: {content, title}, 
-            outputData: result, 
-            time: new Date(), 
+            userId,  // req.user를 통해 사용자 정보에 접근
+            apiName: '/post',
+            restMethod: 'POST',
+            inputData: { content, title },
+            outputData: result,
+            time: new Date(),
         };
 
         await makeLog(req, res, logData, next);
@@ -199,13 +150,13 @@ router.put("/:postIdx", loginCheck, isBlank('content','title'), async (req, res,
 // 게시물 삭제하기 API
 router.delete("/:idx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.idx;
-    const userIdx = req.session.user.idx;
-    const userId = req.session.user.id
+    const userIdx = req.user.idx;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.user.id;    // req.user를 통해 사용자 정보에 접근
 
     const result = {
         "success": false,
         "message": "",
-        editable : false
+        editable: false
     };
     try {
         const query = {
@@ -227,12 +178,12 @@ router.delete("/:idx", loginCheck, async (req, res, next) => {
 
         const logData = {
             ip: req.ip,
-            userId: userId, 
-            apiName: '/post/:idx', 
-            restMethod: 'DELETE', 
-            inputData: {content, title}, 
-            outputData: result, 
-            time: new Date(), 
+            userId,
+            apiName: '/post/:idx',
+            restMethod: 'DELETE',
+            inputData: {},
+            outputData: result,
+            time: new Date(),
         };
 
         await makeLog(req, res, logData, next);
