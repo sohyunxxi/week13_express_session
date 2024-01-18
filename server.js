@@ -12,11 +12,11 @@ const httpsPort = 8443
 // const connection = require('./src/config/mysql');
 const sessionObj = require('./src/config/session');
 
-const options={
-  "key": fs.readFileSync(path.join(__dirname, "./src/keys/key.pem")), //가져온 파일의 절대경로
-  "cert": fs.readFileSync(path.join(__dirname, "./src/keys/cert.pem")),
-  "passphrase":"1234"
-}
+// const options={
+//   "key": fs.readFileSync(path.join(__dirname, "./src/keys/key.pem")), //가져온 파일의 절대경로
+//   "cert": fs.readFileSync(path.join(__dirname, "./src/keys/cert.pem")),
+//   "passphrase":"1234"
+// }
 
 app.use(express.json()) //json 가지고 통신할 수 있게 해주는 설정. -> 받아온 값을 다시 json으로 바꾸는 등등..
 app.use(session(sessionObj)); //모든 url에 접근시 적용
@@ -58,9 +58,9 @@ app.use((err, req, res, next) => {
 app.listen(port, ()=>{
     console.log(`${port}번에서 HTTP 웹서버 실행`)
 })
-https.createServer(options, app).listen(httpsPort, ()=>{ //https 서버
-  console.log(`${port}번에서 HTTP 웹서버 실행`)
-})
+// https.createServer(options, app).listen(httpsPort, ()=>{ //https 서버
+//   console.log(`${port}번에서 HTTP 웹서버 실행`)
+// })
 // connection.connect((err) => { //바꾸기
 //     if (err) {
 //       console.error('MySQL 연결 실패: ' + err.stack);
