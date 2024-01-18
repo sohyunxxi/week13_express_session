@@ -9,14 +9,13 @@ const { idReq, pwReq, emailReq, nameReq, genderReq, birthReq, addressReq, telReq
 
 // 로그인 API
 //세션 생성해서 저장
-
 router.post('/login', checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), async (req, res, next) => {
     const { id, pw } = req.body;
     const result = {
         success: false,
         message: '로그인 실패',
         data: {
-            token : ""
+            token: ""
         }
     };
 
@@ -34,6 +33,30 @@ router.post('/login', checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), asyn
                 status: 401
             });
         }
+
+        // 세션스토어 사용해서 모든 세션 조회 후 현재 로그인 된 계정의 값 비교 -> 일치하는 경우 삭제
+        // 어떤 값을 비교? idx
+        req.sessionStore.all((err, sessionList) => {
+            if (err) {
+                return next(Error("sessionStore Error"))
+            }
+
+            for (const sessionID in sessionList) {
+                const session = sessionList[sessionID];
+                console.log("세션:",session)
+                console.log("유저키:",session.user.idx)
+                if (session.user.idx === req.session.user.idx) { // 현재 세션의 사용 계정키가 로그인 시도한 사용자의 계정 키와 일치하면(중복 로그인)
+                    req.sessionStore.destroy(sessionID, (err) => { // 그 세션을 파괴
+                        if (err) {
+                            console.log(err)
+                        } else {
+                            console.log("중복 로그인 세션 삭제 성공");
+                        }
+                    });
+                    break;
+                }
+            }
+        })
 
         req.session.user = rows[0];
         console.log(req.session.user);
@@ -64,6 +87,7 @@ router.post('/login', checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), asyn
         next(error);
     }
 });
+
 
 // 로그아웃 API
 router.post('/logout', loginCheck, async (req, res, next) => {
