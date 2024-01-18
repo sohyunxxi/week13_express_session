@@ -35,7 +35,7 @@ router.post('/login', checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), asyn
         }
 
         // 세션스토어 사용해서 모든 세션 조회 후 현재 로그인 된 계정의 값 비교 -> 일치하는 경우 삭제
-        // 어떤 값을 비교? idx
+        // 어떤 값을 비교? idx 
         req.sessionStore.all((err, sessionList) => {
             if (err) {
                 return next(Error("sessionStore Error"))
@@ -45,8 +45,8 @@ router.post('/login', checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), asyn
                 const session = sessionList[sessionID];
                 console.log("세션:",session)
                 console.log("유저키:",session.user.idx)
-                if (session.user.idx === req.session.user.idx) { // 현재 세션의 사용 계정키가 로그인 시도한 사용자의 계정 키와 일치하면(중복 로그인)
-                    req.sessionStore.destroy(sessionID, (err) => { // 그 세션을 파괴
+                if (session.user.idx === req.session.user.idx) { 
+                    req.sessionStore.destroy(sessionID, (err) => { 
                         if (err) {
                             console.log(err)
                         } else {
