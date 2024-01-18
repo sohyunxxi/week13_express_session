@@ -9,7 +9,7 @@ const isLogin = (req, res, next) => {
   const secretKey = process.env.SECRET_KEY;
 
   if (req.session.isLoggedIn) {
-    // 이미 로그인한 경우
+    // 이미 로그인한 경우 - 이 부분 이상
     res.status(401).json({ message: '이미 로그인 중입니다. 원래 디바이스에서 로그아웃합니다.' });
   } else {
     // 세션에 사용자 정보 저장

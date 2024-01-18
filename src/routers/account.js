@@ -8,7 +8,9 @@ const checkPattern = require("../middleware/checkPattern")
 const { idReq, pwReq, emailReq, nameReq, genderReq, birthReq, addressReq, telReq }= require("../config/patterns")
 
 // 로그인 API
-router.post('/login', isLogin, checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), async (req, res, next) => {
+//세션 생성해서 저장
+
+router.post('/login', checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), isLogin, async (req, res, next) => {
     const { id, pw } = req.body;
     const result = {
         success: false,
@@ -33,6 +35,22 @@ router.post('/login', isLogin, checkPattern(idReq, 'id'), checkPattern(pwReq, 'p
             });
         }
 
+        for (const sessionId in req.sessionStore.sessions) {
+            const session = JSON.parse(req.sessionStore.sessions[sessionId]);
+            if (session.user && session.user.id === id) {
+                req.sessionStore.destroy(sessionId, (err) => {
+                    if (err) {
+                        console.error('세션 삭제 오류:', err);
+                    }
+                });
+            }
+        }
+
+        //세션에 넣기
+        //result.data = rows[0];
+        req.session.user = rows[0];
+        console.log(req.session.user);
+
         const user = rows[0];
 
         // 토큰 생성
@@ -50,7 +68,9 @@ router.post('/login', isLogin, checkPattern(idReq, 'id'), checkPattern(pwReq, 'p
         result.success = true;
         result.message = '로그인 성공';
         result.data = user;
-        result.data.token = token
+        result.data.token = token;
+
+
 
         const logData = {
             ip: req.ip,
