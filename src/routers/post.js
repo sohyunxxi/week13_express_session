@@ -7,7 +7,7 @@ const isBlank = require("../middleware/isBlank")
 
 // 게시물 목록 불러오기 API
 router.get("/", loginCheck, async (req, res, next) => {
-    const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;  // req.user를 통해 사용자 정보에 접근
 
     const result = {
         success: false,
@@ -52,7 +52,7 @@ router.get("/", loginCheck, async (req, res, next) => {
 // 게시물 불러오기 API
 router.get("/:postIdx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.postIdx;
-    const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;  // req.user를 통해 사용자 정보에 접근
 
     const result = {
         success: false,
@@ -100,8 +100,8 @@ router.get("/:postIdx", loginCheck, async (req, res, next) => {
 
 // 게시물 쓰기 API
 router.post("/", loginCheck, isBlank('content', 'title'), async (req, res, next) => {
-    const userIdx = req.user.idx;  // req.user를 통해 사용자 정보에 접근
-    const userId = req.user.id;    // req.user를 통해 사용자 정보에 접근
+    const userIdx = req.session.user.idx;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;    // req.user를 통해 사용자 정보에 접근
 
     const { content, title } = req.body;
 
@@ -147,11 +147,60 @@ router.post("/", loginCheck, isBlank('content', 'title'), async (req, res, next)
     }
 });
 
+// 게시물 수정하기 API
+router.put("/:postIdx", loginCheck, isBlank('content', 'title'), async (req, res, next) => {
+    const userIdx = req.session.user.idx;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;    // req.user를 통해 사용자 정보에 접근
+
+    const { content, title } = req.body;
+
+    const result = {
+        success: false,
+        message: "",
+        data: null
+    };
+    try {
+        const query = {
+            text: 'UPDATE post SET title = $1, content = $2 WHERE account_idx = $3',
+            values: [title, content, userIdx],
+        };
+        
+        const { rowCount } = await queryConnect(query);
+
+        if (rowCount == 0) {
+            return next({
+                message: '게시물 수정 오류',
+                status: 500
+            });
+        }
+
+        result.success = true;
+        result.message = "게시물 수정 성공";
+        result.data = rowCount;
+
+        const logData = {
+            ip: req.ip,
+            userId: userId,
+            apiName: '/post',
+            restMethod: 'PUT',
+            inputData: { content, title },
+            outputData: result,
+            time: new Date(),
+        };
+
+        await makeLog(req, res, logData, next);
+        res.send(result);
+    } catch (e) {
+        result.message = e.message;
+        return next(e);
+    }
+});
+
 // 게시물 삭제하기 API
 router.delete("/:idx", loginCheck, async (req, res, next) => {
     const postIdx = req.params.idx;
-    const userIdx = req.user.idx;  // req.user를 통해 사용자 정보에 접근
-    const userId = req.user.id;    // req.user를 통해 사용자 정보에 접근
+    const userIdx = req.session.user.idx;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;    // req.user를 통해 사용자 정보에 접근
 
     const result = {
         "success": false,

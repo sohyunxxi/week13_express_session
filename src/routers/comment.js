@@ -9,7 +9,7 @@ const isBlank = require("../middleware/isBlank")
 // 댓글 가져오기 API
 router.get("/", loginCheck, async (req, res, next) => {
     const { postIdx } = req.body;
-    const userId = req.user.id;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;
 
     const result = {
         success: false,
@@ -66,8 +66,8 @@ router.get("/", loginCheck, async (req, res, next) => {
 // 댓글 등록 API
 router.post("/", loginCheck, isBlank('content'), async (req, res, next) => {
     const { postIdx, content } = req.body;
-    const userIdx = req.user.idx;  // req.user를 통해 사용자 정보에 접근
-    const userId = req.user.id;   // req.user를 통해 사용자 정보에 접근
+    const userIdx = req.session.user.idx;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;   // req.user를 통해 사용자 정보에 접근
 
     const result = {
         success: false,
@@ -123,8 +123,8 @@ router.post("/", loginCheck, isBlank('content'), async (req, res, next) => {
 router.put("/:idx", loginCheck, isBlank('content'), async (req, res, next) => {
     const { content } = req.body;
     const commentIdx = req.params.idx;
-    const userIdx = req.user.idx;  // req.user를 통해 사용자 정보에 접근
-    const userId = req.user.id;   // req.user를 통해 사용자 정보에 접근
+    const userIdx = req.session.user.idx;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;   // req.user를 통해 사용자 정보에 접근
 
     const result = {
         success: false,
@@ -175,8 +175,8 @@ router.put("/:idx", loginCheck, isBlank('content'), async (req, res, next) => {
 // 댓글 삭제 API
 router.delete("/:idx", loginCheck, async (req, res, next) => {
     const commentIdx = req.params.idx;
-    const userIdx = req.user.idx;  // req.user를 통해 사용자 정보에 접근
-    const userId = req.user.id;   // req.user를 통해 사용자 정보에 접근
+    const userIdx = req.session.user.idx;  // req.user를 통해 사용자 정보에 접근
+    const userId = req.session.user.id;   // req.user를 통해 사용자 정보에 접근
 
     const result = {
         success: false,
