@@ -1,7 +1,6 @@
 const router = require("express").Router()
 const jwt = require('jsonwebtoken');
 const loginCheck = require('../middleware/loginCheck');
-const isLogin = require("../middleware/isLogin");
 const queryConnect = require('../modules/queryConnect');
 const makeLog = require("../modules/makelog");
 const checkPattern = require("../middleware/checkPattern")
@@ -43,17 +42,22 @@ router.post('/login', checkPattern(idReq, 'id'), checkPattern(pwReq, 'pw'), asyn
 
             for (const sessionID in sessionList) {
                 const session = sessionList[sessionID];
-                console.log("세션:",session)
-                console.log("유저키:",session.user.idx)
-                if (session.user.idx === req.session.user.idx) { 
-                    req.sessionStore.destroy(sessionID, (err) => { 
-                        if (err) {
-                            console.log(err)
-                        } else {
-                            console.log("중복 로그인 세션 삭제 성공");
-                        }
-                    });
-                    break;
+                console.log("세션:", session)
+                
+                // session.user가 존재하고 session.user.idx가 존재할 때만 출력
+                if (session.user && session.user.idx !== undefined) {
+                    console.log("유저키:", session.user.idx)
+                    
+                    if (session.user.idx === req.session.user.idx) { 
+                        req.sessionStore.destroy(sessionID, (err) => { 
+                            if (err) {
+                                console.log(err)
+                            } else {
+                                console.log("중복 로그인 세션 삭제 성공");
+                            }
+                        });
+                        break;
+                    }
                 }
             }
         })
