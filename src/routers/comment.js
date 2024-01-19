@@ -143,7 +143,7 @@ router.put("/:idx", loginCheck, isBlank('content'), async (req, res, next) => {
 
         if (rowCount === 0) {
             return next({
-                message: '댓글 수정 실패',
+                message: '수정 권한 없거나 댓글이 존재하지 않음',
                 status: 500
             });
         }
